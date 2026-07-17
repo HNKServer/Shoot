@@ -1,4 +1,4 @@
-LoveArrow
+Shoot
 =====
 
 [![Python: 3.14](https://img.shields.io/badge/Python-3.14-blue)](https://www.python.org/)
@@ -10,11 +10,11 @@ WIP SIF1 v9.11 private server written in Python 3.12+ using FastAPI.
 
 ## Overview
 
-Basically just the original NPPS4 with CN client support.
+Basically just the original NPPS4 with CN client support and Android GUI shell.
 
 All for ZH language support and convenience.
 
-基本上就是原版的 NPPS4 加上了国服客户端支持。
+基本上就是原版的 NPPS4 加上了国服客户端支持和图形壳。
 
 一切都是为了支持中文语言和便捷。
 
