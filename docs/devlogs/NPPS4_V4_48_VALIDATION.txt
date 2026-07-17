@@ -1,0 +1,28 @@
+NPPS4 Android Wrapper v4.48 validation
+========================================
+
+Scope
+- Fix CN post-download restart communication error caused by museum/info.
+- Replace non-interactive Android scrollbar indicators with draggable vertical/horizontal controls.
+- No international-server, cross-server social, friend-linkage, or unrelated endpoint work included.
+
+Checks
+- Python compileall: PASS
+- CN contract guard: PASS
+  CN contract guard OK
+- v4.48 targeted validation: PASS
+  v4.48 validation OK
+  CN Museum rows checked: 3 sample rows; schema columns: 16
+  Draggable vertical/horizontal scrollbar wiring: present
+- Android versionCode/versionName: 430 / 0.4.30
+- Build marker: v4.48-cn-museum-draggable-scrollbars
+
+Log-grounded regression diagnosis
+- /museum/info selected museum_contents_m._encryption_release_id.
+- Bundled CN Museum DB intentionally lacks that GL-only column.
+- The batch subresult became status=500 while outer /main.php/api stayed HTTP 200.
+- v4.48 selects only portable ID and buff columns and short-circuits an empty unlock list.
+
+Environment limitation
+- Full Gradle/Android APK compilation was not run because this execution image has no Android SDK or Gradle wrapper.
+- Python syntax, CN contract, bundled SQLite schema/query, and Kotlin source wiring checks passed.

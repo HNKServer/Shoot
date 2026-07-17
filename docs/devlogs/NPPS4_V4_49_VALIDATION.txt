@@ -1,0 +1,56 @@
+NPPS4 Android Wrapper / PC v4.49 validation
+============================================
+
+Scope
+- Restore the exact CN type-2 data-transfer / manga home card.
+- Prevent CN secretbox UI from loading incompatible GL-version resources.
+- Resolve exact CN raw assets from the user-owned CN ZIP chain.
+- Restore editable Wrapper subpages and preserve user config across restarts.
+- Expose the promised diagnostic report.
+- Make the existing 1360-row Museum bridge testable through persistent policy switches.
+- No cross-server friends, simultaneous CN/GL account service, or unrelated endpoints.
+
+Static and executable checks
+- Android Python compileall: PASS
+- PC Python compileall: PASS
+- CN contract guard (Android): PASS
+- CN contract guard (PC): PASS
+- v4.49 targeted validator: PASS
+- Android/PC npps4 server tree parity: PASS
+- Museum merged rows: 1360
+- Museum manifest: CN 16 / imported GL 1344 / merged 1360
+
+Executed raw ZIP resolver tests
+- exact member lookup: PASS
+- latest type-99 update package precedence: PASS
+- unique top-level wrapper suffix: PASS
+- exact byte materialization: PASS
+- cache behavior: PASS
+- GL fallback blocked only for version-coupled secretbox/WebView namespaces: PASS
+- non-version-coupled GL fallback remains available: PASS
+
+Wrapper checks
+- editable mode has TextKeyListener, cursor, focus and explicit IME request: PASS
+- all parent ScrollViews are prevented from intercepting editor gestures: PASS
+- read-only log mode remains separate: PASS
+- config creation no longer overwrites an existing valid file: PASS
+- Wrapper-owned values use targeted TOML upsert: PASS
+- unlock-policy defaults are inserted only when absent: PASS
+- report button -> Python bridge -> report generator wiring: PASS
+
+Diagnostic report execution
+- synthetic CN ZIP scanning: PASS
+- key asset origin/size/CRC reporting: PASS
+- Museum DB/manifest/overlay reporting: PASS
+- per-user MuseumUnlock count reporting: PASS
+- report file creation under workspace/reports: PASS
+
+Log-grounded findings
+- v4.48 returned banner_type=2 with the scouting icon s_ba_1718_1.png.
+- v4.48 served en/ secretbox title/appeal textures through GL overlay immediately before native GLThread SIGTRAPs.
+- secretbox/all and banner/bannerList returned status 200, so these crashes were resource/render-contract failures rather than Python 500 responses.
+- 99_0_116 was downloaded and the bundled Museum database already contains the merged catalog; 16 visible items reflect user unlock policy/state.
+
+Environment limitation
+- No Android SDK/android.jar/Gradle wrapper is available in this execution image.
+- Kotlin source was checked for syntax-level diagnostics with kotlinc, but a real Android APK build and client-device rendering test were not performed.

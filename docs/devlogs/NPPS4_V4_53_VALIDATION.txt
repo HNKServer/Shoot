@@ -1,0 +1,76 @@
+NPPS4 Android Wrapper v4.53 validation
+======================================
+
+Build
+-----
+BUILD_ID: v4.53-cn-banner-content-package-museum-fix
+Android versionCode: 435
+Android versionName: 0.4.33
+Base: v4.52 source, with v4.50/v4.51 synthetic version stages removed.
+
+Log35 diagnosis
+---------------
+- v4.52 returned two CN banner_type=2 entries with back_side=false.
+- Both WebView targets worked, but no valid back-side item existed, matching the
+  flip-path native crash.
+- v4.52 returned museum/info with 1360 IDs; direct Museum entry was followed
+  within about 0.15 seconds by SIGTRAP on the client's GLThread.
+- 99_0_116 was downloaded, but the client still behaved as if its local Museum
+  catalogue and banner assets were absent. This proves that merely adding the
+  files to the early 99 stage did not establish the final installed content.
+
+v4.53 contract
+--------------
+- The retained CN client/content version remains exactly 97.4.6.
+- android_extra_update_packages defaults to [].
+- Existing 99_0_113/114/115 are not modified.
+- No 99_0_116 or 99_0_117 is generated or registered.
+- Client files are inserted into cached copies of existing normal full-data
+  packages, served under their original package URL and ID with corrected size.
+- The operator-owned source ZIPs stay read-only.
+
+Home banner
+-----------
+- Front item 1: type-2 data-transfer WebView using the user-supplied PS PNG.
+- Remaining front items: type-1 scouting pages generated from the exact active
+  secretbox entries in server_data.json. target_id equals the same secretbox ID
+  exposed by secretbox/all.
+- Back side: one type-2 official-manga WebView item.
+- The user transfer PNG is byte-identical to the supplied file, RGBA 1914x616,
+  and all four outer corner pixels have alpha 0.
+- The manga thumbnail is a complete 623x241 crop of the proven CN manga banner.
+
+Museum
+------
+- Client Museum DB: 1360 rows, CN Honky v4.
+- Server Museum DB: 1360 rows.
+- The final WW Museum base.lua was decrypted and re-encrypted with the CN Honky
+  contract. Its plaintext contains micro_download, downloadIfNotExist and .flsh.
+- museum/info returns only the original 16 IDs until the normal package carrying
+  museum.db_ has completed its HTTP response.
+- After that readiness marker, policy=all returns the 1360-row catalogue.
+- The marker is written by a FileResponse BackgroundTask, not before streaming.
+
+Automated checks
+----------------
+PASS: tools/validate_v453.py
+  - transfer image SHA/dimensions/alpha
+  - manga aspect ratio
+  - client/server Museum row counts
+  - CN re-encrypted Museum Lua contract
+  - banner front/back source contract
+  - at least 8 unique active server_data scouting assets
+  - synthetic normal-package DB/Lua replacement
+  - synthetic normal-package transfer/manga additions
+  - type-99 package remains untouched even when it contains the same paths
+  - 16->1360 readiness gate
+  - full Python compileall
+
+PASS: tools/cn_contract_guard.py
+
+Limitations
+-----------
+- No Android SDK/Gradle environment is available in this runtime, so the APK
+  itself was not compiled here.
+- Static and synthetic package tests do not substitute for the requested fresh
+  CN-client full-download/device test.

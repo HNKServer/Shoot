@@ -1,0 +1,2 @@
+# npps4_gl_overlay.py and inspect_museum_db.py use only Python's standard library.
+# The full-mirror wrapper installs the official clone.py dependencies itself.

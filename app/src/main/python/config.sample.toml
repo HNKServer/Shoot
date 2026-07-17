@@ -1,0 +1,310 @@
+# NPPS4 sample configuration file.
+# NPPS4 can be configured in 2 ways:
+# 1. By copying this file to `config.toml` and modifying it
+# 2. By specifying environment variable to desired value for each field.
+# Values in this config.sample.toml is what NPPS4 is configured by default.
+
+[main]
+# This is main configuration.
+
+# Where's the data directory?
+# Path is relative to the project root directory.
+# Note: When running behind container, don't change this. All paths that
+# specify "data/" is the directory where this config.sample.toml is placed.
+# Environment Variable: NPPS4_CONFIG_MAIN_DATADIR
+data_directory = "data"
+
+# Secret key used for various things.
+# If this secret key is compromised, please change it!
+# Also you definitely must change this!
+# Environment Variable: NPPS4_CONFIG_MAIN_SECRETKEY
+secret_key = "Hello World"
+
+# Server private key.
+# You must have server private key setup alongside with your client
+# patched to use the server public key.
+# Environment Variable: NPPS4_CONFIG_MAIN_PKEY
+server_private_key = "default_server_key.pem"
+
+# Server private key password.
+# If your server private key password is encrypted, specify it here.
+# Alternatively, the environment variable "NPPS_KEY_PASSWORD" takes precedence
+# over this value.
+# IF your private key is not encrypted, specify empty string.
+# Environment Variable: NPPS4_CONFIG_MAIN_PKEYPASS (or) NPPS_KEY_PASSWORD
+server_private_key_password = ""
+
+# Server-specific data.
+# Server-specific data controls server-specific variable such as live-related drops.
+# A sensible default based on version 59.4 is provided.
+# Environment Variable: NPPS4_CONFIG_MAIN_SERVERDATA
+server_data = "npps4/server_data.json"
+
+# Session token expiration in seconds.
+# If you don't want user token to expire, set this to 0.
+# The default is 72 hours (3 days).
+# Environment Variable: NPPS4_CONFIG_MAIN_TOKENEXPIRY
+session_expiry = 259200
+
+# For live replay, store the backup of live show notes data?
+# If this is false, then players will lose their live show replays when the
+# beatmap data is modified.
+# If this is true, then player will still able to play their live show replays
+# with the unmodified beatmap data but increase the database size.
+# Environment Variable: NPPS4_CONFIG_MAIN_SAVENOTESLIST
+save_notes_list = false
+
+[database]
+# This is database-related configuration.
+# NPPS4 uses SQLAlchemy for its ORM mapper library.
+# For supported backends, please consult SQLAlchemy page:
+# https://docs.sqlalchemy.org/en/20/dialects/index.html
+
+# Database connection string.
+# If in doubt, SQLite3 is a safe choice if you don't need performance as
+# SQLite3 is available as part of NPPS4 requirements to access game DB files.
+# Note: An async backend must be used:
+# * SQLite3: sqlite+aiosqlite
+# * PostgreSQL: postgresql+psycopg
+# * MySQL/MariaDB: mysql+asyncmy, mysql+aiomysql
+# For additional database backend please consult SQLAlchemy dialects:
+# https://docs.sqlalchemy.org/en/20/dialects/
+# Note: Docker image of NPPS4 only ships with these database dialect support:
+# * sqlite+aiosqlite
+# * postgresql+psycopg
+# Environment Variable: NPPS4_CONFIG_DATABASE_URL
+url = "sqlite+aiosqlite:///data/main.sqlite3"
+
+[download]
+# This is in-game-download-related configuration.
+# Client requires client files to function.
+# Server requires client database to function too.
+
+# Which download backend to use? Available backends are:
+# "none" - None. Any `/download/` endpoint request will result in error.
+#          You MUST provide the server the database file it needs in
+#          `<data directory>/db` folder, otherwise the server will refuse to
+#          start!
+# "n4dlapi" - NPPS4 Download API (recommended). This is the recommended
+#             backend with standarized API. A reference implementation to
+#             host your own NPPS4 Download API is available at here:
+#             https://github.com/DarkEnergyProcessor/NPPS4-DLAPI
+#             Currently, NPPS4 requires NPPS4 Download API server that
+#             implements version 1 of the protocol.
+# "internal" - Locally mirrored game data according to folder structure
+#              written in https://github.com/DarkEnergyProcessor/NPPS4-DLAPI.
+# "custom" - Use custom Python script to provide downloader.
+#            Please see "external/custom_downloader.py" on how to implement
+#            your own download backend provider.
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_BACKEND
+backend = "none"
+
+# Send patched server_info.json automatically?
+# This requires honky-py (installed as part of NPPS4 requirements). There's no
+# reason to turn this off unless your download API or archive already provides
+# patched server_info.json.
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_FIXSERVERINFO
+send_patched_server_info = true
+
+[download.none]
+# What's the latest client version?
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_NONE_VERSION
+client_version = "59.4"
+
+[download.n4dlapi]
+# NPPS4 Download API protocol is an RESTful-based HTTP protocol on how to
+# retrieve SIF-related files.
+# More information can be found in here:
+# https://github.com/DarkEnergyProcessor/NPPS4-DLAPI
+
+# Where's the NPPS4 Download API is hosted?
+# This option accepts URL path without trailing slashes. For example, if your
+# NPPS4 Download API server is hosted through `http://example.com/n4dlapi` and
+# such that `http://example.com/n4dlapi/api/publicinfo` gives public
+# information about the NPPS4 Download API server, then specify
+# "http://example.com/n4dlapi"
+# Note: Make sure it's allowed to access internet if NPPS4 is behind container.
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_N4DLAPI_SERVER
+server = "https://localhost:8000"
+
+# What's the Shared Key used to communicate with the NPPS4 Download API
+# server?
+# If your NPPS4 Download API server is public, then specify empty string.
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_N4DLAPI_KEY
+shared_key = ""
+
+[download.internal]
+# Where's the "archive-root" directory is stored?
+# Path is relative to the project root directory.
+# Note: When NPPS4 is run behind container, extra care must be taken such that
+# the directory is accessible inside the container.
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_INTERNAL_ROOT
+archive_root = "archive-root"
+
+
+# CN flat archives backend. Use this when you want to serve the raw CN archive
+# directory directly, e.g. list_CN_Android/0_0_1.zip, instead of converting it
+# to NPPS4-DLAPI's archive-root layout.
+[download.cn_archive]
+# Path to CN Android ZIP archives, usually the list_CN_Android directory.
+android_archives = "list_CN_Android"
+
+# Path to CN iOS ZIP archives, if available. Leave empty to disable iOS.
+ios_archives = ""
+
+# Optional extracted asset roots used by /download/getUrl. Leave empty if you do
+# not have extracted resources yet.
+android_extracted = ""
+ios_extracted = ""
+
+# Directory containing game_mater.db_, unit.db_, live.db_, etc. If empty, NPPS4
+# falls back to data/db.
+db_root = "data/db"
+
+# CN APK version used for UI/Lua capability gates.
+application_version = "9.7.1"
+# CN archive/content version reported in Server-Version and download/update.
+client_version = "97.4.6"
+
+# honoka-chan/CN update package behavior.
+update_package_type = 99
+server_info_override = "99_0_115.zip"
+
+# Fetch only missing extracted assets from the public GL mirror and cache them locally.
+# This does not replace the CN 97.4.6 update/package backend.
+gl_overlay_enabled = true
+gl_overlay_server = "https://ll.sif.moe/npps4_dlapi"
+gl_overlay_cache = ""
+gl_overlay_timeout = 30
+gl_overlay_try_language_fallback = true
+gl_overlay_negative_ttl = 300
+
+# Generated CN Museum master overlay and route-audit access policies.
+android_extra_update_packages = []
+ios_extra_update_packages = []
+archive_access_manifest = "data/cn_update_overlays/archive_access_manifest.json"
+# normal = ordinary progression; all = unlock every native CN Museum item (16).
+museum_unlock_policy = "all"
+main_scenario_unlock_policy = "normal" # normal | archive | all
+subscenario_unlock_policy = "normal"   # normal | archive | all
+live_unlock_policy = "normal"          # normal | archive | all
+album_catalog_unlock_policy = "normal" # normal | archive | all | complete
+
+[download.custom]
+# Specify custom download provider script.
+# Path is relative to the project root directory.
+# Note: The file path is not configurable in Android.
+# Environment Variable: NPPS4_CONFIG_DOWNLOAD_CUSTOM_FILE
+file = "external/custom_downloader.py"
+
+[game]
+# Game-specific configuration
+
+# Specify badwords checker script.
+# Path is relative to the project root directory.
+# Note: The file path is not configurable in Android.
+# Environment Variable: NPPS4_CONFIG_GAME_BADWORDS
+badwords = "external/badwords.py"
+
+# Specify login bonus reward generator script.
+# Path is relative to the project root directory.
+# Note: The file path is not configurable in Android.
+# Environment Variable: NPPS4_CONFIG_GAME_LOGINBONUS
+login_bonus = "external/login_bonus.py"
+
+# Specify beatmap provider script.
+# Path is relative to the project root directory.
+# Note: The file path is not configurable in Android.
+# Environment Variable: NPPS4_CONFIG_GAME_BEATMAPS
+beatmaps = "external/beatmap.py"
+
+# Specify Live Show! unit drop script.
+# Path is relative to the project root directory.
+# Note: The file path is not configurable in Android.
+# Environment Variable: NPPS4_CONFIG_GAME_UNITDROP
+live_unit_drop = "external/live_unit_drop.py"
+
+# Specify Live Show! Reward Box drop script.
+# Path is relative to the project root directory.
+# Note: The file path is not configurable in Android.
+# Environment Variable: NPPS4_CONFIG_GAME_BOXDROP
+live_box_drop = "external/live_box_drop.py"
+
+[gameplay]
+# Gameplay-related configuration
+
+# Multiplier for required LP consumption for live show.
+# Final energy required will be rounded towards infinity.
+# Set this to 0 to disable LP consumption.
+# Environment Variable: NPPS4_CONFIG_GAMEPLAY_LPMUL
+energy_multiplier = 1
+
+# Multiplier for given bond after clearing live show.
+# Final given bond will be rounded towards infinity.
+# Environment Variable: NPPS4_CONFIG_GAMEPLAY_LOVEMUL
+love_multiplier = 1
+
+# Multiplier for scouting banner cost.
+# Final cost will be rounded towards infinity.
+# Note: While setting this to 0 means scouting will be free, do note
+# that the game still requires 50 love gems to perform 10+1 scouting.
+# That check is client-side, meaning it's done in the game itself.
+# Environment Variable: NPPS4_CONFIG_GAMEPLAY_GACHACOSTMUL
+secretbox_cost_multiplier = 1
+
+[iex]
+# This is account import/export setting.
+# Feel free to change as needed, but consider it when exposing them.
+
+# Enable account data export.
+# Export UI can be accessed through /webview.php/helper/export
+# Environment Variable: NPPS4_CONFIG_IEX_EXPORT
+enable_export = true
+
+# Enable account data import.
+# Import UI can be accessed through /webview.php/helper/import
+# Environment Variable: NPPS4_CONFIG_IEX_IMPORT
+enable_import = false
+
+# When importing account through import UI, bypass any signature check.
+# Normally, only account exported with same "main.secret_key" can be imported
+# back.
+# Environment Variable: NPPS4_CONFIG_IEX_BYPASS
+bypass_signature = false
+
+
+[compat]
+# Set to "cn" to enable the CN GHome/Shengqu bridge and CN archive backend helpers.
+# Keep "global" for ordinary JP/Global clients.
+region = "global"
+
+# Extra honoka-style headers on /main.php responses. Usually not needed because
+# NPPS4 already sends the headers SIF expects; leave this off unless logs show
+# the CN client explicitly needs them. GHome routes always send their own SDK
+# compatibility headers.
+cn_main_headers = true
+
+# Auto-create a normal NPPS4 user after successful local GHome login.
+cn_autocreate_ghome_users = true
+
+# Emergency fallback only: register minimal CN-only stub endpoints that upstream
+# NPPS4 does not implement. Keep false to avoid masking missing real gameplay
+# behavior during compatibility testing.
+cn_optional_stubs = false
+
+[advanced]
+# This is advanced configuration.
+# In almost all cases, you don't have to change anything here.
+
+# Base XORPAD key.
+# Environment Variable: NPPS4_CONFIG_ADVANCED_BASEKEY
+base_xorpad = "eit4Ahph4aiX4ohmephuobei6SooX9xo"
+# The server application key.
+# Environment Variable: NPPS4_CONFIG_ADVANCED_APPKEY
+application_key = "b6e6c940a93af2357ea3e0ace0b98afc"
+# Consumer key.
+# Environment Variable: NPPS4_CONFIG_ADVANCED_CONSUMERKEY
+consumer_key = "lovelive_test"
+# Should be the X-Message-Code sent by client be verified?
+# Environment Variable: NPPS4_CONFIG_ADVANCED_XMC
+verify_xmc = true

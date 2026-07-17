@@ -1,0 +1,30 @@
+<resources>
+    <style name="Theme.NPPS4Wrapper" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/npps4_blue</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:navigationBarColor">@color/npps4_surface</item>
+        <item name="android:statusBarColor">@color/npps4_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <!--
+        This style must be applied in the EditText constructor. Enabling scrollbars
+        only after construction can leave View.mScrollCache.scrollBar uninitialised
+        on some Samsung/Android builds and crash in View.onDrawScrollBars().
+    -->
+    <style name="Widget.NPPS4Wrapper.ScrollableEditor" parent="android:style/Widget.Material.EditText">
+        <item name="android:scrollbars">horizontal|vertical</item>
+        <item name="android:fadeScrollbars">false</item>
+        <item name="android:scrollbarStyle">insideInset</item>
+        <item name="android:scrollbarSize">8dp</item>
+        <item name="android:scrollbarAlwaysDrawVerticalTrack">true</item>
+        <item name="android:scrollbarAlwaysDrawHorizontalTrack">true</item>
+        <item name="android:scrollbarThumbVertical">@drawable/npps4_scrollbar_thumb_vertical</item>
+        <item name="android:scrollbarTrackVertical">@drawable/npps4_scrollbar_track_vertical</item>
+        <item name="android:scrollbarThumbHorizontal">@drawable/npps4_scrollbar_thumb_horizontal</item>
+        <item name="android:scrollbarTrackHorizontal">@drawable/npps4_scrollbar_track_horizontal</item>
+    </style>
+</resources>

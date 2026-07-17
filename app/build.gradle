@@ -1,0 +1,166 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'moe.honoka.npps4wrapper'
+    compileSdk 35
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    defaultConfig {
+        applicationId 'moe.honoka.npps4wrapper'
+        minSdk 26
+        targetSdk 35
+        versionCode 442
+        versionName '0.4.40'
+
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+
+    }
+
+    // Greenlet's Android wheel is linked against libc++_shared.so. Because this
+    // project doesn't build its own C++ target, AGP won't automatically package
+    // the NDK C++ shared runtime unless we provide it as a jniLib. The task
+    // below copies the matching ABI files from the installed NDK into this
+    // default jniLibs directory before packaging.
+    sourceSets {
+        main {
+            jniLibs.srcDirs += ['src/main/jniLibs']
+        }
+    }
+
+    packaging {
+        jniLibs {
+            pickFirsts += ['**/libc++_shared.so']
+        }
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+    implementation 'com.google.android.material:material:1.12.0'
+}
+
+chaquopy {
+    defaultConfig {
+        // NPPS4 requires Python 3.12+. This Android wrapper targets Python 3.13
+        // because Chaquopy has Android wheels for pycryptodomex on cp313.
+        // The build Python must have the same major/minor version as this runtime.
+        // On Windows, this uses the Python launcher. If it fails, replace it with
+        // your exact python.exe path, e.g. buildPython("C:/Python313/python.exe").
+        version = "3.13"
+        buildPython("py", "-3.13")
+
+        pip {
+            // Native Pydantic v2 profile. pydantic-core is a native/Rust extension,
+            // so Chaquopy needs an Android-compatible wheel matching Python 3.13
+            // and the selected ABI. Local wheels in app/src/main/python/wheels are
+            // preferred; if they are absent, fall back to Flet's Android wheel index.
+            options("--find-links", "src/main/python/wheels")
+            options("--extra-index-url", "https://pypi.flet.dev")
+            // Keep pydantic and pydantic-core pinned together. The checked-in
+            // constraints target Android cp313 wheels which are currently available
+            // from the Flet index for arm64-v8a and x86_64.
+            options("-c", "src/main/python/constraints-android.txt")
+            options("--prefer-binary")
+            options("--only-binary", ":all:")
+            install("-r", "src/main/python/requirements-android.txt")
+        }
+    }
+}
+
+
+// Copy the Android NDK C++ shared runtime for all ABIs used by this wrapper.
+// This fixes native Python wheels such as greenlet failing with:
+//   dlopen failed: library "libc++_shared.so" not found
+// The task accepts ANDROID_NDK_HOME, ANDROID_NDK_ROOT, android.ndkDirectory,
+// or local.properties: ndk.dir=...
+def npps4AndroidAbis = ['arm64-v8a', 'x86_64']
+def npps4AndroidAbiTriples = [
+        'arm64-v8a' : 'aarch64-linux-android',
+        'x86_64'    : 'x86_64-linux-android',
+        'armeabi-v7a': 'arm-linux-androideabi',
+        'x86'       : 'i686-linux-android'
+]
+
+def npps4FindNdkRoot = {
+    def candidates = []
+    try {
+        if (android.ndkDirectory != null) candidates.add(android.ndkDirectory)
+    } catch (Throwable ignored) { }
+    def localProps = rootProject.file('local.properties')
+    if (localProps.exists()) {
+        def props = new Properties()
+        localProps.withInputStream { props.load(it) }
+        def ndkDir = props.getProperty('ndk.dir')
+        if (ndkDir != null && ndkDir.trim()) candidates.add(file(ndkDir.trim()))
+    }
+    ['ANDROID_NDK_HOME', 'ANDROID_NDK_ROOT', 'NDK_HOME'].each { name ->
+        def value = System.getenv(name)
+        if (value != null && value.trim()) candidates.add(file(value.trim()))
+    }
+    return candidates.find { it != null && it.exists() && it.isDirectory() }
+}
+
+def npps4FindLibcxxForAbi = { File ndkRoot, String abi ->
+    def triple = npps4AndroidAbiTriples[abi]
+    def directCandidates = [
+            file("${ndkRoot}/sources/cxx-stl/llvm-libc++/libs/${abi}/libc++_shared.so")
+    ]
+    if (triple != null) {
+        directCandidates.addAll(fileTree(dir: file("${ndkRoot}/toolchains/llvm/prebuilt"), includes: [
+                "*/sysroot/usr/lib/${triple}/libc++_shared.so",
+                "*/sysroot/usr/lib/${triple}/*/libc++_shared.so"
+        ]).files)
+    }
+    return directCandidates.find { it.exists() && it.isFile() }
+}
+
+tasks.register('copyNdkLibcxxShared') {
+    group = 'build setup'
+    description = 'Copy libc++_shared.so from Android NDK into app/src/main/jniLibs for Chaquopy native wheels.'
+    outputs.dir(file('src/main/jniLibs'))
+
+    doLast {
+        def ndkRoot = npps4FindNdkRoot()
+        if (ndkRoot == null) {
+            throw new GradleException("Android NDK not found. Install Android SDK NDK in Android Studio, or set ANDROID_NDK_HOME / ANDROID_NDK_ROOT / ndk.dir in local.properties. Required to package libc++_shared.so for greenlet.")
+        }
+        npps4AndroidAbis.each { abi ->
+            def src = npps4FindLibcxxForAbi(ndkRoot, abi)
+            if (src == null) {
+                throw new GradleException("Cannot find libc++_shared.so for ${abi} under NDK: ${ndkRoot}")
+            }
+            def dstDir = file("src/main/jniLibs/${abi}")
+            dstDir.mkdirs()
+            copy {
+                from src
+                into dstDir
+                rename { 'libc++_shared.so' }
+            }
+            logger.lifecycle("NPPS4: copied ${src} -> ${new File(dstDir, 'libc++_shared.so')}")
+        }
+    }
+}
+
+tasks.named('preBuild') {
+    dependsOn(tasks.named('copyNdkLibcxxShared'))
+}

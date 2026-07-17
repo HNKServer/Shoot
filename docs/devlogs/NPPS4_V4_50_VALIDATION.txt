@@ -1,0 +1,23 @@
+NPPS4 Android Wrapper v4.50 validation
+======================================
+
+Passed checks:
+- Python compileall for android_wrapper.py and npps4 package.
+- Existing CN contract guard.
+- Dedicated tools/validate_v450.py.
+- CN banner source contains two type-2 cards with back_side=false.
+- CN banner source uses packaged transfer and manga PNG files.
+- GET/POST /transfer routes update NPPS4 transfer_sha1 state.
+- manga.html parses as Jinja after removal of Go-template markers.
+- Existing 97.4.6 / 99_0_116 / normal config migrates to
+  97.4.7 / 99_0_117 / all and creates a backup.
+- Synthetic 99_0_117 ZIP passes CRC validation and contains:
+  db/museum/museum.db_, npps4_data_transfer.png, npps4_manga.png.
+- Bundled CN Museum payload decrypts successfully and contains 1360 rows.
+- Museum all-policy paths avoid SQL IN clauses over 1360 values.
+- Android source markers are versionCode 433 / versionName 0.4.32.
+
+Not performed in this environment:
+- Android Gradle/Kotlin compilation (Android SDK and Gradle wrapper unavailable).
+- Installation on the user's CN 9.7.1 device.
+- Native client rendering and update-application verification.

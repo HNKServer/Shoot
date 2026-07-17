@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<meta http-equiv="Content-Type" content="text/html" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+		}
+	</style>
+	<script>
+		function main() {
+			const serialCodeInput = document.getElementById("serial_code");
+			const submitButtom = document.getElementById("submit");
+			const resultButton = document.getElementById("result");
+			const token = document.getElementById("token").value;
+			const lang = document.getElementById("language").value;
+			var inProgress = false;
+
+			submitButtom.addEventListener("click", function () {
+				const key = serialCodeInput.value.trim();
+				if (inProgress || !key) {
+					return;
+				}
+				const ts = Math.floor(new Date() / 1000);
+
+				inProgress = true;
+				resultButton.textContent = "Entering...";
+				resultButton.style.color = "yellow";
+
+				const xhr = new XMLHttpRequest();
+				xhr.onerror = function onerr(e) {
+					console.error(e);
+					resultButton.textContent = e.toString();
+					resultButton.style.color = "red";
+					inProgress = false;
+				}
+				xhr.onload = function() {
+					if (!xhr.status.toString().startsWith("2")) {
+						return onerr(xhr.response);
+					}
+					const result = JSON.parse(xhr.response);
+					resultButton.textContent = result.msg;
+					resultButton.style.color = result.ok ? "green" : "red"
+					if (result.ok) {
+						serialCodeInput.value = "";
+					}
+					inProgress = false;
+				}
+				xhr.open("POST", "");
+				xhr.setRequestHeader("Content-Type", "application/json");
+				xhr.setRequestHeader("Authorize", "consumerKey=lovelive_test&timestamp=" + ts + "&version=1.1&nonce=WV0&token=" + token);
+				xhr.setRequestHeader("LANG", lang);
+				xhr.send(JSON.stringify({
+				    key: key,
+				}));
+			})
+		}
+
+		if (document.readyState !== "loading") {
+			main();
+		} else {
+			document.addEventListener("DOMContentLoaded", main);
+		}
+	</script>
+</head>
+
+<body style="padding:1rem;text-align:center">
+	<h3>Input Serial Code</h3>
+	<input id="token" type="hidden" value="{{token}}">
+	<input id="language" type="hidden" value="{{lang}}">
+	<input id="serial_code" type="text" style="width:100%;text-align:center">
+	<button id="submit" style="width:100%;margin-top:0.25rem">Enter</button>
+	<p id="result" style="white-space:pre-line"></p>
+</body>

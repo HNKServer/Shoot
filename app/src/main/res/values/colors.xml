@@ -1,0 +1,9 @@
+<resources>
+    <color name="npps4_blue">#1769FF</color>
+    <color name="npps4_blue_dark">#0048C7</color>
+    <color name="npps4_blue_on">#FFFFFF</color>
+    <color name="npps4_blue_container">#D9E2FF</color>
+    <color name="npps4_blue_on_container">#001946</color>
+    <color name="npps4_surface">#FBF8FF</color>
+    <color name="npps4_on_surface">#1B1B1F</color>
+</resources>
