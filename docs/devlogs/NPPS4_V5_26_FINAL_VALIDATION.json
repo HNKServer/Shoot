@@ -1,0 +1,37 @@
+{
+  "build_id": "v5.26-direct-special-accessory-level1-grant-fix",
+  "android_version_code": 526,
+  "android_version_name": "0.5.26",
+  "direct_special_grant": {
+    "cn_special_accessory_types": 258,
+    "gl_special_accessory_types": 484,
+    "state": {
+      "exp": 0,
+      "rank_up_count": 0,
+      "api_level": 1
+    },
+    "common_accessories_remain_maxed": true
+  },
+  "special_target_cards": {
+    "post_verified_minimum_eligible_copies": 3,
+    "late_target_zero_copy_creation_test": "PASS"
+  },
+  "crafted_special_accessory": {
+    "independent_new_inventory_row": true,
+    "initial_level": 1,
+    "initial_rank_up_count": 0
+  },
+  "transfer_contract": "client remove+wear atomic transfer preserved",
+  "museum_mode": "visual-only by default",
+  "ranking_schema": "original shared raw-score schema",
+  "database_migration": false,
+  "gradle_apk_build_performed": false,
+  "validation": {
+    "pc_validate_v526": "PASS",
+    "android_validate_v526": "PASS",
+    "startup_import_contract": "PASS",
+    "compileall": "PASS",
+    "pc_android_python_files_identical": true,
+    "python_file_count_each": 2341
+  }
+}

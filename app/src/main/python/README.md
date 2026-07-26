@@ -46,7 +46,7 @@ docker pull ghcr.io/darkenergyprocessor/npps4:latest
 Then run the container for the first time so it setup the necessary data in `path/to/data`:
 
 ```sh
-docker run --name npps4 -v path/to/data:/NPPS4/data -p 0.0.0.0:51376:51376 -it npps4
+docker run --name npps4 -v path/to/data:/NPPS4/data -p 0.0.0.0:8080:8080 -it npps4
 ```
 
 Configure `config.sample.toml` then **save it as `config.toml`** (or save the modified `config.sample.toml` first then
@@ -162,14 +162,14 @@ alembic upgrade head
 
 Then run the server
 ```sh
-uvicorn npps4.run.app:main --port 51376 --host <your lan IP or 0.0.0.0>
+uvicorn npps4.run.app:main --port 8080 --host <your lan IP or 0.0.0.0>
 ```
 
 If you need to run with multiple workers, you must additionally install `gunicorn` and `uvicorn-worker` Python package.
 ```sh
 pip install gunicorn uvicorn-worker # only needs to be done once
 
-gunicorn --preload npps4.run.app:main -w 4 -k uvicorn_worker.UvicornWorker -b <your lan IP or 0.0.0.0>:51376
+gunicorn --preload npps4.run.app:main -w 4 -k uvicorn_worker.UvicornWorker -b <your lan IP or 0.0.0.0>:8080
 ```
 
 Updating

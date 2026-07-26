@@ -15,7 +15,9 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.Settings
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.Window
@@ -52,12 +54,26 @@ class MainActivity : ComponentActivity() {
     private lateinit var hostEdit: EditText
     private lateinit var portEdit: EditText
     private lateinit var publicPathEdit: EditText
+    private lateinit var glLocalPathEdit: EditText
+    private lateinit var cnOnlineEdit: EditText
+    private lateinit var glOnlineEdit: EditText
+    private lateinit var downloadSummaryView: TextView
+    private lateinit var cnDisabledButton: Button
+    private lateinit var cnLocalButton: Button
+    private lateinit var cnOnlineButton: Button
+    private lateinit var glDisabledButton: Button
+    private lateinit var glLocalButton: Button
+    private lateinit var glOnlineButton: Button
+    private lateinit var defaultCnButton: Button
+    private lateinit var defaultGlButton: Button
     private lateinit var pathsView: TextView
     private val logLines = ArrayDeque<String>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var statusPoller: Runnable? = null
     @Volatile private var statusUpdating = false
     private var lastLoggedStatusError = ""
+    private var endpointLocked = false
+    private var suppressEndpointPersistence = false
 
     private val backupCreateLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
         if (uri != null) runAsync("导出服务器数据备份") {
@@ -84,6 +100,21 @@ class MainActivity : ComponentActivity() {
                 appendLog("已设置 CDN ZIP 目录：$path")
             } else {
                 appendLog("无法把此系统目录 URI 转成普通文件路径：$uri\n请选择包含 .zip 数据包的目录，或直接在路径输入框手动填写。")
+            }
+        }
+    }
+
+    private val glRootLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+        if (uri != null) {
+            val path = publicTreeUriToPath(uri)
+            if (path != null) {
+                PythonBridge.setGlArchiveRoot(this, File(path))
+                if (::glLocalPathEdit.isInitialized) glLocalPathEdit.setText(path)
+                FileOps.rewriteDefaultConfig(this)
+                refreshDownloadControls()
+                appendLog("已设置 GL 本地 archive-root：$path")
+            } else {
+                appendLog("无法把此系统目录 URI 转成普通文件路径：$uri；可在 GL 本地路径输入框手动填写。")
             }
         }
     }
@@ -119,10 +150,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (::fixedHeader.isInitialized && ::headerToggle.isInitialized) updateHeaderVisibility()
         if (::pathsView.isInitialized) pathsView.text = pathSummary()
+        refreshDownloadControls()
         startStatusPolling(immediate = true)
     }
 
     override fun onPause() {
+        saveEndpointPreferences()
         super.onPause()
         stopStatusPolling()
     }
@@ -168,7 +201,7 @@ class MainActivity : ComponentActivity() {
         titleRow.addView(headerToggle, LinearLayout.LayoutParams(dp(48), dp(40)))
         root.addView(titleRow)
         root.addView(TextView(this).apply {
-            text = "本机私服 · 国服 CDN 直读路径 · 服务器数据备份"
+            text = "本机私服 · CN/GL 双 Profile · 独立本地/在线数据源"
             textSize = 14f
             setTextColor(muted)
             setPadding(0, dp(2), 0, dp(12))
@@ -189,7 +222,6 @@ class MainActivity : ComponentActivity() {
             addView(statusView)
             addView(button("刷新状态 / 健康检查") { updateStatus(forceLog = true) })
             addView(button("查看完整崩溃/服务错误日志") { openCrashLog() })
-            addView(button("生成并查看诊断报告") { generateAndOpenDiagnosticReport() })
             addView(button("清空错误日志") { CrashReporter.file(this@MainActivity).writeText("", Charsets.UTF_8); updateStatus(forceLog = true) })
             detailView = bodyText("最近操作会显示在这里，不会把整段 traceback 堆到主界面。")
             detailView.typeface = Typeface.MONOSPACE
@@ -200,30 +232,34 @@ class MainActivity : ComponentActivity() {
         cardsContainer.addView(card {
             addView(sectionTitle("监听地址"))
             val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-            hostEdit = input("Host", "127.0.0.1", InputType.TYPE_CLASS_TEXT).also {
+            hostEdit = input("Host", Npps4Service.savedHost(this@MainActivity), InputType.TYPE_CLASS_TEXT).also {
                 row.addView(it.parent as View, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f).apply { marginEnd = dp(8) })
             }
-            portEdit = input("Port", "51376", InputType.TYPE_CLASS_NUMBER).also {
+            portEdit = input("Port", Npps4Service.savedPort(this@MainActivity).toString(), InputType.TYPE_CLASS_NUMBER).also {
                 row.addView(it.parent as View, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             }
             addView(row)
+            attachEndpointPersistence()
+            addView(bodyText("服务运行期间 Host 与 Port 会锁定；停止服务后才能修改。输入值会自动保存。"))
             addView(button("启动服务器") {
                 requestNotificationPermission()
-                val host = hostEdit.text?.toString().orEmpty().ifBlank { "127.0.0.1" }
-                val port = portEdit.text?.toString()?.toIntOrNull() ?: 51376
+                val endpoint = validatedEndpoint() ?: return@button
+                val (host, port) = endpoint
+                Npps4Service.saveEndpoint(this@MainActivity, host, port)
+                setEndpointLocked(true, host, port)
                 appendLog("请求启动服务器：$host:$port")
                 FileOps.ensureTemplate(this@MainActivity)
-                FileOps.rewriteDefaultConfig(this@MainActivity)
                 Npps4Service.start(this@MainActivity, host, port)
                 startStatusPolling(immediate = true)
             })
             addView(button("重启服务器") {
                 requestNotificationPermission()
-                val host = hostEdit.text?.toString().orEmpty().ifBlank { "127.0.0.1" }
-                val port = portEdit.text?.toString()?.toIntOrNull() ?: 51376
+                val endpoint = validatedEndpoint() ?: return@button
+                val (host, port) = endpoint
+                Npps4Service.saveEndpoint(this@MainActivity, host, port)
+                setEndpointLocked(true, host, port)
                 appendLog("请求重启服务器：$host:$port")
                 FileOps.ensureTemplate(this@MainActivity)
-                FileOps.rewriteDefaultConfig(this@MainActivity)
                 Npps4Service.restart(this@MainActivity, host, port)
                 startStatusPolling(immediate = true)
             })
@@ -235,30 +271,85 @@ class MainActivity : ComponentActivity() {
         })
 
         cardsContainer.addView(card {
-            addView(sectionTitle("下载后端 / 区服快捷配置"))
-            addView(bodyText("当前下载模式：${downloadProfileLabel()}\n国服：客户端和资源 ZIP 都走本地 cn_archive；国际服：客户端 API 走本地 127.0.0.1:8080，数据包 URL 由 NPPS4-DLAPI 在线返回。切换后需要重启服务端。"))
-            addView(button("一键切换：国服本地 CDN 数据包（cn_archive）") {
-                runAsync("切换国服本地 CDN 模式") {
-                    FileOps.configureCnArchive(this@MainActivity) + "\n" + FileOps.checkPublicPaths(this@MainActivity)
+            addView(sectionTitle("CN / GL 独立下载源"))
+            downloadSummaryView = bodyText(FileOps.downloadSummary(this@MainActivity))
+            addView(downloadSummaryView)
+            addView(bodyText("CN 运行模式"))
+            val cnModeRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            cnDisabledButton = modeButton("禁用") {
+                appendLog(FileOps.setProfileMode(this@MainActivity, FileOps.PROFILE_CN, FileOps.MODE_DISABLED))
+                refreshDownloadControls()
+            }
+            cnLocalButton = modeButton("本地") {
+                appendLog(FileOps.setProfileMode(this@MainActivity, FileOps.PROFILE_CN, FileOps.MODE_LOCAL))
+                refreshDownloadControls()
+            }
+            cnOnlineButton = modeButton("在线") {
+                appendLog(FileOps.setProfileMode(this@MainActivity, FileOps.PROFILE_CN, FileOps.MODE_ONLINE))
+                refreshDownloadControls()
+            }
+            addModeButtons(cnModeRow, cnDisabledButton, cnLocalButton, cnOnlineButton)
+            addView(cnModeRow)
+            cnOnlineEdit = input("CN 在线 DLAPI/CDN URL（CN 选择在线时使用）", FileOps.getOnlineServer(this@MainActivity, FileOps.PROFILE_CN), InputType.TYPE_CLASS_TEXT)
+            addView(cnOnlineEdit.parent as View)
+
+            addView(bodyText("GL 运行模式"))
+            val glModeRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            glDisabledButton = modeButton("禁用") {
+                appendLog(FileOps.setProfileMode(this@MainActivity, FileOps.PROFILE_GL, FileOps.MODE_DISABLED))
+                refreshDownloadControls()
+            }
+            glLocalButton = modeButton("本地") {
+                appendLog(FileOps.setProfileMode(this@MainActivity, FileOps.PROFILE_GL, FileOps.MODE_LOCAL))
+                refreshDownloadControls()
+            }
+            glOnlineButton = modeButton("在线") {
+                appendLog(FileOps.setProfileMode(this@MainActivity, FileOps.PROFILE_GL, FileOps.MODE_ONLINE))
+                refreshDownloadControls()
+            }
+            addModeButtons(glModeRow, glDisabledButton, glLocalButton, glOnlineButton)
+            addView(glModeRow)
+            glLocalPathEdit = input("GL 本地 archive-root（GL 选择本地时使用）", PythonBridge.glArchiveRoot(this@MainActivity).absolutePath, InputType.TYPE_CLASS_TEXT)
+            addView(glLocalPathEdit.parent as View)
+            addView(button("选择 GL 本地 archive-root（不复制文件）") { glRootLauncher.launch(null) })
+            glOnlineEdit = input("GL 在线 DLAPI/CDN URL（GL 选择在线时使用）", FileOps.getOnlineServer(this@MainActivity, FileOps.PROFILE_GL), InputType.TYPE_CLASS_TEXT)
+            addView(glOnlineEdit.parent as View)
+
+            addView(bodyText("登录前无法识别客户端地区时使用的默认 Profile"))
+            val defaultRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            defaultCnButton = modeButton("默认 CN") {
+                appendLog(FileOps.setDefaultProfile(this@MainActivity, FileOps.PROFILE_CN))
+                refreshDownloadControls()
+            }
+            defaultGlButton = modeButton("默认 GL") {
+                appendLog(FileOps.setDefaultProfile(this@MainActivity, FileOps.PROFILE_GL))
+                refreshDownloadControls()
+            }
+            addModeButtons(defaultRow, defaultCnButton, defaultGlButton)
+            addView(defaultRow)
+            addView(button("保存双 Profile 路径与 URL") {
+                runAsync("保存双 Profile 配置") {
+                    FileOps.saveProfileOptions(
+                        this@MainActivity,
+                        cnOnlineEdit.text?.toString().orEmpty(),
+                        glLocalPathEdit.text?.toString().orEmpty(),
+                        glOnlineEdit.text?.toString().orEmpty(),
+                    )
                 }
             })
-            addView(button("一键切换：国际服在线 DLAPI/CDN 数据包") {
-                runAsync("切换国际服在线 DLAPI/CDN 模式") {
-                    FileOps.configureGlOnlineDlapi(this@MainActivity) + "\nDLAPI: ${FileOps.ONLINE_DLAPI_SERVER}"
-                }
-            })
+            addView(bodyText("CN 与 GL 可分别禁用、使用本地数据或在线 DLAPI；四种本地/在线组合互不覆盖。默认 Profile 只用于登录前无法从请求判定地区的少量请求。"))
             addView(button("编辑 config.toml 查看当前配置") { ConfigEditorActivity.open(this@MainActivity, PythonBridge.configFile(this@MainActivity).absolutePath, "config.toml") })
         })
 
         cardsContainer.addView(card {
-            addView(sectionTitle("路径映射 / 本机 CDN"))
-            publicPathEdit = input("CDN ZIP 目录（直接选择包含 .zip 的文件夹，名称不限）", PythonBridge.publicBase(this@MainActivity).absolutePath, InputType.TYPE_CLASS_TEXT)
+            addView(sectionTitle("CN 本地数据 / Master DB"))
+            publicPathEdit = input("CN ZIP 目录（CN 选本地时使用）", PythonBridge.publicBase(this@MainActivity).absolutePath, InputType.TYPE_CLASS_TEXT)
             addView(publicPathEdit.parent as View)
             pathsView = bodyText(pathSummary())
             pathsView.setTextIsSelectable(true)
             addView(pathsView)
-            addView(bodyText("这里只配置只读 CDN 目录；普通 ZIP 和 99_0_115.zip 都不会被 Wrapper 编辑。master DB 使用内置 honoka main.db 生成到工作区。国际服在线 DLAPI 模式不依赖这个目录。"))
-            addView(button("选择 CDN ZIP 目录（不复制文件）") { publicRootLauncher.launch(null) })
+            addView(bodyText("CN ZIP 始终按只读处理；普通 ZIP 和 99_0_115.zip 都不会被 Wrapper 编辑。CN master DB 使用内置 honoka 数据生成到工作区。GL 的本地/在线路径在独立卡片中配置。"))
+            addView(button("选择 CN ZIP 目录（不复制文件）") { publicRootLauncher.launch(null) })
             addView(button("保存路径并检查") {
                 val path = publicPathEdit.text?.toString().orEmpty().ifBlank { "/storage/emulated/0/NPPS4" }
                 PythonBridge.setPublicBase(this@MainActivity, File(path))
@@ -336,6 +427,20 @@ class MainActivity : ComponentActivity() {
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) }
     }
 
+    private fun modeButton(text: String, action: (View) -> Unit): Button = button(text, action).apply {
+        minHeight = dp(44)
+        textSize = 14f
+    }
+
+    private fun addModeButtons(row: LinearLayout, vararg buttons: Button) {
+        buttons.forEachIndexed { index, button ->
+            row.addView(button, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                topMargin = dp(4)
+                if (index > 0) marginStart = dp(6)
+            })
+        }
+    }
+
     private fun smallToggleButton(): Button = Button(this).apply {
         isAllCaps = false
         textSize = 18f
@@ -346,6 +451,63 @@ class MainActivity : ComponentActivity() {
         minimumWidth = dp(48)
         minHeight = dp(40)
         setPadding(0, 0, 0, 0)
+    }
+
+    private data class EndpointUiState(val locked: Boolean, val host: String, val port: Int)
+
+    private fun validatedEndpoint(): Pair<String, Int>? {
+        val host = hostEdit.text?.toString().orEmpty().trim().ifBlank { Npps4Service.DEFAULT_HOST }
+        val port = portEdit.text?.toString()?.trim()?.toIntOrNull()
+        if (port == null || port !in 1..65535) {
+            appendLog("端口号无效：请输入 1–65535。")
+            portEdit.requestFocus()
+            return null
+        }
+        return host to port
+    }
+
+    private fun attachEndpointPersistence() {
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                if (!suppressEndpointPersistence && !endpointLocked) saveEndpointPreferences()
+            }
+        }
+        hostEdit.addTextChangedListener(watcher)
+        portEdit.addTextChangedListener(watcher)
+    }
+
+    private fun saveEndpointPreferences() {
+        if (!::hostEdit.isInitialized || !::portEdit.isInitialized || suppressEndpointPersistence) return
+        val host = hostEdit.text?.toString().orEmpty().trim()
+        val port = portEdit.text?.toString()?.trim()?.toIntOrNull()
+        if (host.isNotBlank() && port != null && port in 1..65535) {
+            Npps4Service.saveEndpoint(this, host, port)
+        }
+    }
+
+    private fun setEndpointLocked(locked: Boolean, actualHost: String? = null, actualPort: Int? = null) {
+        if (!::hostEdit.isInitialized || !::portEdit.isInitialized) return
+        suppressEndpointPersistence = true
+        try {
+            // Only the running server is authoritative. While stopped, do not
+            // overwrite a partially typed endpoint during the status poller.
+            if (locked) {
+                if (!actualHost.isNullOrBlank() && hostEdit.text?.toString() != actualHost) hostEdit.setText(actualHost)
+                if (actualPort != null && actualPort in 1..65535 && portEdit.text?.toString() != actualPort.toString()) {
+                    portEdit.setText(actualPort.toString())
+                }
+            }
+        } finally {
+            suppressEndpointPersistence = false
+        }
+        endpointLocked = locked
+        hostEdit.isEnabled = !locked
+        portEdit.isEnabled = !locked
+        hostEdit.alpha = if (locked) 0.62f else 1f
+        portEdit.alpha = if (locked) 0.62f else 1f
+        if (locked && actualHost != null && actualPort != null) Npps4Service.saveEndpoint(this, actualHost, actualPort)
     }
 
     private fun input(label: String, value: String, inputType: Int): EditText {
@@ -373,9 +535,27 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    private fun downloadProfileLabel(): String = when (FileOps.getDownloadProfile(this)) {
-        FileOps.PROFILE_GL_ONLINE_DLAPI -> "国际服在线 DLAPI/CDN（n4dlapi → ${FileOps.ONLINE_DLAPI_SERVER}）"
-        else -> "国服本地 CDN（cn_archive）"
+    private fun refreshDownloadControls() {
+        if (!::downloadSummaryView.isInitialized) return
+        downloadSummaryView.text = FileOps.downloadSummary(this)
+        val cnMode = FileOps.getProfileMode(this, FileOps.PROFILE_CN)
+        val glMode = FileOps.getProfileMode(this, FileOps.PROFILE_GL)
+        markModeButton(cnDisabledButton, cnMode == FileOps.MODE_DISABLED, "禁用")
+        markModeButton(cnLocalButton, cnMode == FileOps.MODE_LOCAL, "本地")
+        markModeButton(cnOnlineButton, cnMode == FileOps.MODE_ONLINE, "在线")
+        markModeButton(glDisabledButton, glMode == FileOps.MODE_DISABLED, "禁用")
+        markModeButton(glLocalButton, glMode == FileOps.MODE_LOCAL, "本地")
+        markModeButton(glOnlineButton, glMode == FileOps.MODE_ONLINE, "在线")
+        val defaultProfile = FileOps.getDefaultProfile(this)
+        markModeButton(defaultCnButton, defaultProfile == FileOps.PROFILE_CN, "默认 CN")
+        markModeButton(defaultGlButton, defaultProfile == FileOps.PROFILE_GL, "默认 GL")
+        if (::pathsView.isInitialized) pathsView.text = pathSummary()
+    }
+
+    private fun markModeButton(button: Button, selected: Boolean, label: String) {
+        button.text = if (selected) "✓ $label" else label
+        button.alpha = if (selected) 0.68f else 1f
+        button.isEnabled = !selected
     }
 
     private fun pathSummary(): String = """
@@ -384,15 +564,18 @@ CDN ZIP 目录: ${PythonBridge.cnAndroidArchives(this).absolutePath}
 99_0_115: ${File(PythonBridge.cnAndroidArchives(this), "99_0_115.zip").absolutePath}
 内置 master DB 输出目录: ${PythonBridge.dbRoot(this).absolutePath}
 服务地址: http://${hostEdit.text}:${portEdit.text}/
-下载模式: ${downloadProfileLabel()}
+下载配置:
+${FileOps.downloadSummary(this)}
+GL 本地 archive-root: ${PythonBridge.glArchiveRoot(this).absolutePath}
 外部存储模式: ${storageModeSummary()}
 """.trimIndent()
 
     private fun updateStatus(forceLog: Boolean = false) {
         if (!::statusView.isInitialized || statusUpdating) return
         statusUpdating = true
-        val host = hostEdit.text?.toString().orEmpty().ifBlank { "127.0.0.1" }
-        val port = portEdit.text?.toString()?.toIntOrNull() ?: 51376
+        val host = hostEdit.text?.toString().orEmpty().ifBlank { Npps4Service.savedHost(this) }
+        val port = portEdit.text?.toString()?.toIntOrNull()?.takeIf { it in 1..65535 }
+            ?: Npps4Service.savedPort(this)
         Thread {
             val pair = try {
                 val s: JSONObject = PythonBridge.safeStatus(this, host, port)
@@ -400,6 +583,11 @@ CDN ZIP 目录: ${PythonBridge.cnAndroidArchives(this).absolutePath}
                 val running = s.optBoolean("running")
                 val tcp = s.optBoolean("tcp_health")
                 val thread = s.optBoolean("thread_alive")
+                val actualHost = s.optString("host", host).ifBlank { host }
+                val actualPort = s.optInt("port", port).takeIf { it in 1..65535 } ?: port
+                val shouldLockEndpoint = running || thread || phase in setOf(
+                    "preparing", "migrating", "initializing_db", "starting", "stopping"
+                )
                 val lastError = s.optString("last_error")
                 if (lastError.isNotBlank() && phase == "error") {
                     val compactError = lastError.take(12000)
@@ -419,18 +607,27 @@ CDN ZIP 目录: ${PythonBridge.cnAndroidArchives(this).absolutePath}
                 }
                 val summary = buildString {
                     append("服务器：$label\n")
-                    append("监听：$host:$port\n")
+                    append("监听：$actualHost:$actualPort\n")
                     append("TCP：${if (tcp) "可连接" else "不可连接"}，线程：${if (thread) "存在" else "无"}\n")
                     if (lastError.isNotBlank()) append("最近错误：${summarizeError(lastError)}")
                 }
-                summary to if (lastError.isBlank()) "状态已刷新。" else "完整错误已写入 npps4-wrapper-crash.log。"
+                Triple(
+                    summary,
+                    if (lastError.isBlank()) "状态已刷新。" else "完整错误已写入 npps4-wrapper-crash.log。",
+                    EndpointUiState(shouldLockEndpoint, actualHost, actualPort),
+                )
             } catch (t: Throwable) {
                 CrashReporter.append(this, "safeStatus failed", t)
-                "状态读取失败：${t.javaClass.simpleName}" to summarizeError(t.stackTraceToString())
+                Triple(
+                    "状态读取失败：${t.javaClass.simpleName}",
+                    summarizeError(t.stackTraceToString()),
+                    EndpointUiState(endpointLocked, host, port),
+                )
             }
             runOnUiThread {
                 statusUpdating = false
                 statusView.text = pair.first
+                setEndpointLocked(pair.third.locked, pair.third.host, pair.third.port)
                 if (forceLog) {
                     appendLog(pair.second)
                     if (::pathsView.isInitialized) pathsView.text = pathSummary()
@@ -536,24 +733,6 @@ CDN ZIP 目录: ${PythonBridge.cnAndroidArchives(this).absolutePath}
             }
             appendLog("已打开所有文件访问设置。v3.1 已使用 targetSdk=35 + MANAGE_EXTERNAL_STORAGE；如果开关仍然灰掉，请确认安装的是 0.3.1 版本，或用 ADB：adb shell appops set $packageName MANAGE_EXTERNAL_STORAGE allow")
         } else appendLog("Android 10 或更低版本通常不需要所有文件访问权限。")
-    }
-
-    private fun generateAndOpenDiagnosticReport() {
-        appendLog("正在生成诊断报告：检查 CN ZIP 资源、公告/招募关键资产、Museum 桥接与当前解锁策略……")
-        Thread {
-            try {
-                val result = PythonBridge.generateDiagnosticReport(this)
-                val path = result.optString("path")
-                if (path.isBlank()) error("诊断报告没有返回文件路径：$result")
-                runOnUiThread {
-                    appendLog("诊断报告已生成：$path")
-                    ConfigEditorActivity.open(this, path, "诊断报告日志")
-                }
-            } catch (t: Throwable) {
-                CrashReporter.append(this, "生成诊断报告", t)
-                runOnUiThread { appendLog("诊断报告生成失败：${t.javaClass.simpleName}: ${t.message}") }
-            }
-        }.start()
     }
 
     private fun openCrashLog() {

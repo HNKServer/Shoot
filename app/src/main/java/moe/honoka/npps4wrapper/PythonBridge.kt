@@ -37,6 +37,17 @@ object PythonBridge {
         context.getSharedPreferences("paths", Context.MODE_PRIVATE)
             .edit().putString("public_base", dir.absolutePath).apply()
     }
+
+    fun glArchiveRoot(context: Context): File {
+        val prefs = context.getSharedPreferences("paths", Context.MODE_PRIVATE)
+        val saved = prefs.getString("gl_archive_root", null)
+        return File(saved ?: File(Environment.getExternalStorageDirectory(), "NPPS4-GL").absolutePath)
+    }
+
+    fun setGlArchiveRoot(context: Context, dir: File) {
+        context.getSharedPreferences("paths", Context.MODE_PRIVATE)
+            .edit().putString("gl_archive_root", dir.absolutePath).apply()
+    }
     fun configFile(context: Context): File = File(workDir(context), "config.toml")
 
     private fun hasZipFiles(dir: File): Boolean = try {
@@ -121,17 +132,6 @@ object PythonBridge {
         return JSONObject(result)
     }
 
-    fun generateDiagnosticReport(context: Context): JSONObject {
-        prepare(context)
-        val result = module(context).callAttr(
-            "generate_diagnostic_report",
-            workDir(context).absolutePath,
-            configFile(context).absolutePath,
-            cnAndroidArchives(context).absolutePath,
-            dbRoot(context).absolutePath
-        ).toString()
-        return JSONObject(result)
-    }
 
     fun safeStatus(context: Context, host: String, port: Int): JSONObject {
         if (!Python.isStarted()) {

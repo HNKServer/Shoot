@@ -23,8 +23,8 @@ class Npps4Service : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
-        val host = intent?.getStringExtra(EXTRA_HOST) ?: "127.0.0.1"
-        val port = intent?.getIntExtra(EXTRA_PORT, 51376) ?: 51376
+        val host = intent?.getStringExtra(EXTRA_HOST)?.ifBlank { null } ?: savedHost(this)
+        val port = intent?.getIntExtra(EXTRA_PORT, savedPort(this)) ?: savedPort(this)
         when (action) {
             ACTION_START -> startAsync(host, port, restart = false)
             ACTION_RESTART -> startAsync(host, port, restart = true)
@@ -46,7 +46,6 @@ class Npps4Service : Service() {
                 }
                 updateNotification(label)
                 FileOps.ensureTemplate(this)
-                FileOps.rewriteDefaultConfig(this)
                 val result = PythonBridge.start(this, host, port)
                 if (!result.optBoolean("ok", false)) {
                     updateNotification("NPPS4 start rejected: ${result.optString("error", "unknown error")}")
@@ -181,8 +180,36 @@ class Npps4Service : Service() {
         const val ACTION_RESTART = "moe.honoka.npps4wrapper.RESTART"
         const val EXTRA_HOST = "host"
         const val EXTRA_PORT = "port"
+        const val DEFAULT_HOST = "127.0.0.1"
+        const val DEFAULT_PORT = 51376
+        private const val ENDPOINT_PREFS = "server_endpoint"
+        private const val PREF_HOST = "host"
+        private const val PREF_PORT = "port"
+
+        fun savedHost(context: Context): String = context
+            .getSharedPreferences(ENDPOINT_PREFS, Context.MODE_PRIVATE)
+            .getString(PREF_HOST, DEFAULT_HOST)
+            ?.trim()
+            ?.ifBlank { DEFAULT_HOST }
+            ?: DEFAULT_HOST
+
+        fun savedPort(context: Context): Int = context
+            .getSharedPreferences(ENDPOINT_PREFS, Context.MODE_PRIVATE)
+            .getInt(PREF_PORT, DEFAULT_PORT)
+            .takeIf { it in 1..65535 }
+            ?: DEFAULT_PORT
+
+        fun saveEndpoint(context: Context, host: String, port: Int) {
+            if (host.isBlank() || port !in 1..65535) return
+            context.getSharedPreferences(ENDPOINT_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PREF_HOST, host.trim())
+                .putInt(PREF_PORT, port)
+                .apply()
+        }
 
         fun start(context: Context, host: String, port: Int) {
+            saveEndpoint(context, host, port)
             val i = Intent(context, Npps4Service::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_HOST, host)
@@ -191,6 +218,7 @@ class Npps4Service : Service() {
         }
 
         fun restart(context: Context, host: String, port: Int) {
+            saveEndpoint(context, host, port)
             val i = Intent(context, Npps4Service::class.java)
                 .setAction(ACTION_RESTART)
                 .putExtra(EXTRA_HOST, host)

@@ -1,0 +1,87 @@
+{
+  "patched_entries": {
+    "assets/AppAssets.zip": {
+      "old_sha256": "12ba02478978819bd37407eb27bf54ed8b34a93ba814356ddbe2ad4c0c988c20",
+      "new_sha256": "7a80d985ff17a92b045f3302656d9d7df9f6c34d5ad9e3234418e5275d500093",
+      "old_size": 121688173,
+      "new_size": 122118957
+    },
+    "AndroidManifest.xml": {
+      "old_sha256": "250e17f7a46b990d6d8d5fd7999fbf0cc7202f3a33be382a498de781b688812c",
+      "new_sha256": "bdaee59735215f6792a53c2eb8c469e7a9541e5a94449a9fab19fadb4cdedd83",
+      "old_size": 10028,
+      "new_size": 10028
+    },
+    "res/xml-v22/shortcuts.xml": {
+      "old_sha256": "5ce18700b7b6495d09e0b63b73abb5d8934ac9a8df631b6a98a30aedcd65f6c4",
+      "new_sha256": "4fdf7fedd9de756191aaedf98265ffe328f8338a1b4b9d434247b78409e87450",
+      "old_size": 800,
+      "new_size": 800
+    },
+    "res/xml/shortcuts.xml": {
+      "old_sha256": "ae170f4367edea54b2d77b3f0e164323e6338b59fae0540d58f317e1ae67397d",
+      "new_sha256": "55558b684129221928eecf9b0242c834fdf7d379e58d35dcf8eccce99e4675fb",
+      "old_size": 692,
+      "new_size": 692
+    },
+    "resources.arsc": {
+      "old_sha256": "bd00f493e2012332394fb4b2372d2f5f9e721d573283d63b46754cc84b38e088",
+      "new_sha256": "04cee1d282d7abd6deae142ccb184bf62ea9dc93a6df65b7e407da1101c50ae0",
+      "old_size": 697868,
+      "new_size": 697868
+    },
+    "classes5.dex": {
+      "old_sha256": "f4d197c6242535737e524e6786b07642954e921946b28465e6fed40da1d943df",
+      "new_sha256": "331d42780e942c43fe4c100de18788410f14da99c3c223c701cd3ef7ab3e9466",
+      "old_size": 17176,
+      "new_size": 17176
+    }
+  },
+  "source": "/mnt/data/lovelive-community(1).apk",
+  "server_info": {
+    "honky_region": "jp",
+    "honky_version": 3,
+    "honky_name_sum": 2174,
+    "old_domain": "http://sif.ethanthesleepy.one",
+    "new_domain": "http://127.0.0.1:8080",
+    "api_uri": {
+      "/battle/startWait": "http://127.0.0.1:8080/main.php/battle/startWait",
+      "/battle/endWait": "http://127.0.0.1:8080/main.php/battle/endWait",
+      "/duty/startWait": "http://127.0.0.1:8080/main.php/duty/startWait",
+      "/duty/endWait": "http://127.0.0.1:8080/main.php/duty/endWait",
+      "/duty/privateStartWait": "http://127.0.0.1:8080/main.php/duty/privateStartWait"
+    }
+  },
+  "settings_url_dex": {
+    "entry": "classes5.dex",
+    "replacements": 5,
+    "url": "http://127.0.0.1:8080/"
+  },
+  "verification": {
+    "package": "moe.honoka.npps4glclient",
+    "main_activity": "klb.android.GameEngine.GameEngineActivity",
+    "settings_activity": "com.npdep.wrapperthingen.ServerSettingActivity",
+    "server_domain": "http://127.0.0.1:8080",
+    "settings_default_url": "http://127.0.0.1:8080/",
+    "honky": {
+      "region": "jp",
+      "version": 3,
+      "name_sum": 2174
+    },
+    "v1_verified": true,
+    "v2_verified": true,
+    "v2_signing_block_offset": 149123345,
+    "zip_alignment": {
+      "stored_entries": 235,
+      "misaligned": []
+    },
+    "sha256": "308ec3322e598ae76ea554455d8bef8320fb9ff7313557693ddaa10630981572",
+    "size": 149322195
+  },
+  "signing": {
+    "keystore": "/mnt/data/work_npps4_v500/gl_client/build/signing/npps4-gl-test.p12",
+    "alias": "npps4gltest",
+    "password": "npps4gltest2026",
+    "certificate_sha256": "90a4b28fe5c69d89bd50a0544855b647cdecaea77a810037d8ad8c6123369b69"
+  }
+}

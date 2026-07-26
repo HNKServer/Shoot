@@ -1,0 +1,64 @@
+# NPPS4 v5.16 重新验证报告
+
+- 通过：**59**
+- 失败：**0**
+
+- **PASS** — all embedded Python files parse
+- **PASS** — v5.16 verified build marker
+- **PASS** — v5.15 friend fallback policy retained
+- **PASS** — no process-global per-user cache retained
+- **PASS** — myus blue-coupon single page retained
+- **PASS** — myus blue-coupon 10x page retained
+- **PASS** — myus duplicate art is intentional but IDs differ
+- **PASS** — myus single/10x unit counts differ
+- **PASS** — aqua blue-coupon single page retained
+- **PASS** — aqua blue-coupon 10x page retained
+- **PASS** — aqua duplicate art is intentional but IDs differ
+- **PASS** — aqua single/10x unit counts differ
+- **PASS** — home banner deduplicates art only
+- **PASS** — home banner prefers canonical higher-order page
+- **PASS** — scouting list does not deduplicate pages
+- **PASS** — CN thanks-festival page 1718 present
+- **PASS** — 5K hashes to official ID
+- **PASS** — 5K uses profile-local SSR/UR pool
+- **PASS** — 5K special 11-pull ticket uses item 8
+- **PASS** — CN thanks-festival page 1719 present
+- **PASS** — 5L hashes to official ID
+- **PASS** — 5L uses profile-local SSR/UR pool
+- **PASS** — 5L special 11-pull ticket uses item 8
+- **PASS** — CN thanks-festival page 1720 present
+- **PASS** — 5M hashes to official ID
+- **PASS** — 5M uses profile-local SSR/UR pool
+- **PASS** — 5M special 11-pull ticket uses item 8
+- **PASS** — CN thanks-festival page 1721 present
+- **PASS** — 5N hashes to official ID
+- **PASS** — 5N uses profile-local SSR/UR pool
+- **PASS** — 5N special 11-pull ticket uses item 8
+- **PASS** — Nijigasaki honor page remains GL-only
+- **PASS** — Liella honor page remains GL-only
+- **PASS** — configured pools are projected to active profile unit IDs
+- **PASS** — thanks pools use request profile master
+- **PASS** — empty positive-rate pages are hidden
+- **PASS** — detail and draw use the same projected page
+- **PASS** — sticker catalogue uses NPPS4 request cache
+- **PASS** — sticker list filters unsupported rows
+- **PASS** — sticker purchase reuses the same filter
+- **PASS** — empty CN item master has configured-ticket fallback
+- **PASS** — shop filtering logs excluded row diagnostics
+- **PASS** — CN blue-coupon shop row remains visible
+- **PASS** — CN invalid sticker rows identified exactly — ["background_217", "background_224", "background_225", "background_227", "background_228", "award_534", "award_535", "award_536", "award_537", "award_538", "award_539", "award_540", "award_541", "award_542", "award_543", "award_544", "award_545", "award_546", "award_547", "award_548", "award_549", "award_550", "award_551", "award_552", "award_553", "award_554", "award_555", "award_556", "award_557", "award_558", "award_559", "award_560", "award_561", "award_562", "award_563", "award_564", "award_565", "award_566", "award_567", "award_568", "award_569", "award_570", "award_571", "award_572", "cg?"]
+- **PASS** — CN visible sticker rows count is 804
+- **PASS** — CN special accessory mappings are present
+- **PASS** — every CN special mapping targets a real normal card
+- **PASS** — item 2 is social points
+- **PASS** — item 3 is game coin
+- **PASS** — item 4 is free Loveca
+- **PASS** — LOVEARROWSHOOT explicitly stocks item 1 and 5
+- **PASS** — LOVEARROWSHOOT stocks every configured scouting ticket
+- **PASS** — pseudo items 2/3/4 are balances, not inventory rows
+- **PASS** — LOVEARROWSHOOT creates three eligible special-card copies
+- **PASS** — special accessory still uses one mapped card
+- **PASS** — no speculative two-card special rule added
+- **PASS** — no speculative special wear restriction added
+- **PASS** — special mapping still comes from active profile master
+- **PASS** — schema supports profile and dynamic-pool metadata

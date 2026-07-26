@@ -21,6 +21,7 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.ViewParent
 import android.view.ViewConfiguration
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
@@ -309,6 +310,9 @@ class ConfigEditorActivity : ComponentActivity() {
     private lateinit var verticalScrollbar: DragScrollbarView
     private lateinit var horizontalScrollbar: DragScrollbarView
     private lateinit var status: TextView
+    private lateinit var searchInput: EditText
+    private var lastSearchQuery = ""
+    private var lastSearchIndex = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         try { requestWindowFeature(Window.FEATURE_NO_TITLE) } catch (_: Throwable) {}
@@ -425,6 +429,47 @@ class ConfigEditorActivity : ComponentActivity() {
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             addView(sizeRow)
 
+            val searchRow = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(8), 0, dp(6))
+            }
+            searchInput = EditText(context).apply {
+                hint = "搜索文本（输入后自动跳转）"
+                setSingleLine(true)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                imeOptions = EditorInfo.IME_ACTION_SEARCH
+                textSize = 14f
+                setTextColor(onSurface)
+                setHintTextColor(muted)
+                setPadding(dp(12), 0, dp(12), 0)
+                minHeight = dp(48)
+                background = roundedBackground(Color.rgb(245, 247, 252), dp(14), Color.rgb(196, 201, 212), 1)
+                setOnEditorActionListener { _, actionId, _ ->
+                    if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                        findMatch(forward = true)
+                        true
+                    } else false
+                }
+                addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                    override fun afterTextChanged(s: Editable?) {
+                        lastSearchQuery = ""
+                        lastSearchIndex = -1
+                        post { if (searchInput.text.isNotBlank() && ::editor.isInitialized) findMatch(forward = true) }
+                    }
+                })
+            }
+            searchRow.addView(searchInput, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = dp(6)
+            })
+            searchRow.addView(compactButton("上一个") { findMatch(forward = false) }, LinearLayout.LayoutParams(dp(96), dp(48)).apply {
+                marginEnd = dp(6)
+            })
+            searchRow.addView(compactButton("下一个") { findMatch(forward = true) }, LinearLayout.LayoutParams(dp(96), dp(48)))
+            addView(searchRow)
+
             val editorFrame = FrameLayout(context).apply {
                 background = roundedBackground(Color.rgb(245, 247, 252), dp(14), Color.rgb(196, 201, 212), 1)
             }
@@ -537,6 +582,88 @@ class ConfigEditorActivity : ComponentActivity() {
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(640)))
         updateHeaderVisibility()
         editor.post { updateScrollbars() }
+    }
+
+    private fun findMatch(forward: Boolean) {
+        if (!::searchInput.isInitialized || !::editor.isInitialized || !::status.isInitialized) return
+        val query = searchInput.text?.toString().orEmpty()
+        if (query.isBlank()) {
+            status.text = "请输入要搜索的字符串。"
+            return
+        }
+        val content = editor.text?.toString().orEmpty()
+        if (content.isEmpty()) {
+            status.text = "文件为空。"
+            return
+        }
+
+        val sameQuery = query.equals(lastSearchQuery, ignoreCase = true)
+        val start = if (sameQuery && lastSearchIndex >= 0) {
+            if (forward) lastSearchIndex + query.length else lastSearchIndex - 1
+        } else {
+            if (forward) 0 else content.lastIndex
+        }
+        var index = if (forward) {
+            content.indexOf(query, start.coerceAtLeast(0), ignoreCase = true)
+        } else {
+            content.lastIndexOf(query, start.coerceAtMost(content.lastIndex), ignoreCase = true)
+        }
+        if (index < 0) {
+            index = if (forward) content.indexOf(query, 0, ignoreCase = true)
+            else content.lastIndexOf(query, content.lastIndex, ignoreCase = true)
+        }
+        if (index < 0) {
+            lastSearchQuery = query
+            lastSearchIndex = -1
+            status.text = "未找到：$query"
+            return
+        }
+
+        lastSearchQuery = query
+        lastSearchIndex = index
+        // Keep focus in the search box so automatic search does not steal the
+        // keyboard after the first typed character. The editor selection and
+        // scroll position can be updated without focusing the editor.
+        editor.setSelection(index, (index + query.length).coerceAtMost(content.length))
+        editor.post {
+            val layout = editor.layout
+            if (layout != null) {
+                val line = layout.getLineForOffset(index)
+                val targetY = (layout.getLineTop(line) - editor.height / 3).coerceAtLeast(0)
+                editor.scrollTo(editor.scrollX, targetY)
+                val total = countMatches(content, query)
+                val ordinal = countMatches(content.substring(0, index), query) + 1
+                status.text = "已跳转到第 ${line + 1} 行；匹配 $ordinal / $total。"
+                updateScrollbars()
+            }
+        }
+    }
+
+    private fun countMatches(content: String, query: String): Int {
+        if (query.isEmpty()) return 0
+        var count = 0
+        var offset = 0
+        while (offset <= content.length - query.length) {
+            val found = content.indexOf(query, offset, ignoreCase = true)
+            if (found < 0) break
+            count += 1
+            offset = found + query.length.coerceAtLeast(1)
+        }
+        return count
+    }
+
+    private fun compactButton(text: String, action: () -> Unit): Button = Button(this).apply {
+        this.text = text
+        isAllCaps = false
+        textSize = 13f
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(Color.WHITE)
+        background = roundedBackground(blue, dp(14))
+        setOnClickListener { action() }
+        minWidth = 0
+        minimumWidth = 0
+        minHeight = dp(44)
+        setPadding(dp(6), 0, dp(6), 0)
     }
 
     private fun updateScrollbars() {

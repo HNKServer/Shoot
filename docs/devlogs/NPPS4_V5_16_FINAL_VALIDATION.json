@@ -1,0 +1,302 @@
+{
+  "build_id": "v5.16-verified-sticker-gacha-special-accessory-fix",
+  "passed": 59,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "all embedded Python files parse",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "v5.16 verified build marker",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "v5.15 friend fallback policy retained",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no process-global per-user cache retained",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "myus blue-coupon single page retained",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "myus blue-coupon 10x page retained",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "myus duplicate art is intentional but IDs differ",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "myus single/10x unit counts differ",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "aqua blue-coupon single page retained",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "aqua blue-coupon 10x page retained",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "aqua duplicate art is intentional but IDs differ",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "aqua single/10x unit counts differ",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "home banner deduplicates art only",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "home banner prefers canonical higher-order page",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "scouting list does not deduplicate pages",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN thanks-festival page 1718 present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5K hashes to official ID",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5K uses profile-local SSR/UR pool",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5K special 11-pull ticket uses item 8",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN thanks-festival page 1719 present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5L hashes to official ID",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5L uses profile-local SSR/UR pool",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5L special 11-pull ticket uses item 8",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN thanks-festival page 1720 present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5M hashes to official ID",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5M uses profile-local SSR/UR pool",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5M special 11-pull ticket uses item 8",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN thanks-festival page 1721 present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5N hashes to official ID",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5N uses profile-local SSR/UR pool",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "5N special 11-pull ticket uses item 8",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Nijigasaki honor page remains GL-only",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Liella honor page remains GL-only",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "configured pools are projected to active profile unit IDs",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "thanks pools use request profile master",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "empty positive-rate pages are hidden",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "detail and draw use the same projected page",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "sticker catalogue uses NPPS4 request cache",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "sticker list filters unsupported rows",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "sticker purchase reuses the same filter",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "empty CN item master has configured-ticket fallback",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "shop filtering logs excluded row diagnostics",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN blue-coupon shop row remains visible",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN invalid sticker rows identified exactly",
+      "passed": true,
+      "detail": "[\"background_217\", \"background_224\", \"background_225\", \"background_227\", \"background_228\", \"award_534\", \"award_535\", \"award_536\", \"award_537\", \"award_538\", \"award_539\", \"award_540\", \"award_541\", \"award_542\", \"award_543\", \"award_544\", \"award_545\", \"award_546\", \"award_547\", \"award_548\", \"award_549\", \"award_550\", \"award_551\", \"award_552\", \"award_553\", \"award_554\", \"award_555\", \"award_556\", \"award_557\", \"award_558\", \"award_559\", \"award_560\", \"award_561\", \"award_562\", \"award_563\", \"award_564\", \"award_565\", \"award_566\", \"award_567\", \"award_568\", \"award_569\", \"award_570\", \"award_571\", \"award_572\", \"cg?\"]"
+    },
+    {
+      "name": "CN visible sticker rows count is 804",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN special accessory mappings are present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "every CN special mapping targets a real normal card",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "item 2 is social points",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "item 3 is game coin",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "item 4 is free Loveca",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "LOVEARROWSHOOT explicitly stocks item 1 and 5",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "LOVEARROWSHOOT stocks every configured scouting ticket",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "pseudo items 2/3/4 are balances, not inventory rows",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "LOVEARROWSHOOT creates three eligible special-card copies",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "special accessory still uses one mapped card",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no speculative two-card special rule added",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no speculative special wear restriction added",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "special mapping still comes from active profile master",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "schema supports profile and dynamic-pool metadata",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

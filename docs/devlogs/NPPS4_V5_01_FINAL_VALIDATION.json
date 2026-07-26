@@ -1,0 +1,274 @@
+{
+  "version": "5.01",
+  "build_id": "v5.01-cn-gl-login-startup-hotfix",
+  "passed": 51,
+  "failed": 0,
+  "scope": {
+    "device_log": "sif_cn_full_log39.txt",
+    "root_cause": "npps4/system/user.py used config.get_default_profile() without importing config",
+    "secondary_issue": "/webview.php/static/index?id=12 had no bundled page",
+    "schema_changed": false,
+    "client_apk_changed": false
+  },
+  "checks": [
+    {
+      "name": "user.py imports config",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "profile comparison uses equality",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN startup creates user",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN startup creates profile identity",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN startup preserves password mirror",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GL startup creates user",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GL startup creates profile identity",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GL startup preserves password mirror",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN claims v4.60 legacy identity",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GL cannot steal CN/default legacy identity",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN actual login/startUp route returns user id",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN actual login/startUp route persists identity",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GL actual login/startUp route returns user id",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GL actual login/startUp route persists identity",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "actual login/startUp invalidates both bootstrap tokens",
+      "passed": true,
+      "detail": "['cn', 'gl']"
+    },
+    {
+      "name": "static id=12 bundled page resolves outside project cwd",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "static id=13 remains available",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "unknown static page remains a real miss",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "static id=12 is an age notice",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "static route avoids cwd-only lookup",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "static id=12 route returns HTML 200",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "unknown static route returns JSON 404",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "all runtime global names are module-bound or built-in",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "v5.01 build ID present",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Android versionCode 501",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Android versionName 0.5.1",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "SQLite connections close: npps4/system/content_master.py",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "SQLite connections close: npps4/system/cn_content_master.py",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "SQLite connections close: npps4/android_schema.py",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "SQLite connections close: npps4/alembic/env.py",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Android/PC Python trees match",
+      "passed": true,
+      "detail": "left=2315 right=2315"
+    },
+    {
+      "name": "device log reproduces startup NameError",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "device log reproduces id=12 404",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "device log reached login/authkey",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "device log failed login/startUp",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "PC-side v5.01 validator passes",
+      "passed": true,
+      "detail": "passed=33 failed=0"
+    },
+    {
+      "name": "Android Python compileall passes",
+      "passed": true,
+      "detail": "python -m compileall -q -f"
+    },
+    {
+      "name": "PC Python compileall passes",
+      "passed": true,
+      "detail": "python -m compileall -q -f"
+    },
+    {
+      "name": "Android CN contract guard passes",
+      "passed": true,
+      "detail": "CN contract guard OK"
+    },
+    {
+      "name": "PC CN contract guard passes",
+      "passed": true,
+      "detail": "CN contract guard OK"
+    },
+    {
+      "name": "legacy global download preference is migration-only",
+      "passed": true,
+      "detail": "occurrences=3"
+    },
+    {
+      "name": "legacy global download preference is removed after migration",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "CN and GL each expose disabled/local/online controls",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "old one-click CN/GL quick-switch labels remain absent",
+      "passed": true,
+      "detail": "legacy mode values remain only inside one-time preference migration; old GUI labels are absent"
+    },
+    {
+      "name": "Wrapper prevents disabling CN and GL simultaneously",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "v5.00 verified asset/logic unchanged: app/src/main/python/npps4/assets/cn_home_banner/4_0_999.zip",
+      "passed": true,
+      "detail": "3d20e352095d450662fc4b736e7156d5ef007c717ffd882adfd4a996f174af2b"
+    },
+    {
+      "name": "v5.00 verified asset/logic unchanged: app/src/main/python/npps4/assets/cn_home_banner/tx_wv_ba_117.texb",
+      "passed": true,
+      "detail": "92e9339a23425f10a12251cad01a78fc0a63766acdb73ebe245897991c0abf33"
+    },
+    {
+      "name": "v5.00 verified asset/logic unchanged: app/src/main/python/npps4/assets/cn_home_banner/wv_ba_117.png.imag",
+      "passed": true,
+      "detail": "5e8f31590e8d7dd98dd1dbe7e010d72164617feed1231a4363be166cc1b21d54"
+    },
+    {
+      "name": "v5.00 verified asset/logic unchanged: app/src/main/python/npps4/system/accessory.py",
+      "passed": true,
+      "detail": "d75db87f5ff9fac4fd28f31380f75ff110cd0669bc4aae73e2e01f76d2f0c8dd"
+    },
+    {
+      "name": "no schema migration change: app/src/main/python/npps4/db/main.py",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no schema migration change: app/src/main/python/npps4/alembic/versions",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "limitations": [
+    "The full Android APK was not built in this container because a complete Android Gradle SDK toolchain is not installed.",
+    "The startup route test executes the real login_startUp and user identity source bodies in an isolated transaction harness; final Chaquopy/device verification is still required."
+  ]
+}

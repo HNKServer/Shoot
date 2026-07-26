@@ -1,0 +1,15 @@
+{
+  "build_id": "v5.25-special-accessory-card-grant-and-transfer-contract-fix",
+  "special_accessory_mappings": {"cn": 258, "gl": 484},
+  "missing_target_units": {"cn": 0, "gl": 0},
+  "screenshot_gl_targets": {"424": 3809, "462": 3920, "479": 3927},
+  "target_card_top_up": "passed",
+  "post_write_verification": "passed",
+  "synthetic_special_grant_removed": true,
+  "new_special_level": 1,
+  "new_special_current_max_level": 4,
+  "legacy_cleanup_code": "LOVEARROWSPECIALCLEAN",
+  "direct_transfer_contract": "explicit remove+wear",
+  "database_migration": false,
+  "compileall": "passed"
+}

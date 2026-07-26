@@ -16,35 +16,183 @@ import java.util.zip.ZipOutputStream
 
 object FileOps {
     private const val PREFS = "npps4_wrapper_prefs"
-    private const val KEY_DOWNLOAD_PROFILE = "download_profile"
-    const val PROFILE_CN_ARCHIVE = "cn_archive"
-    const val PROFILE_GL_ONLINE_DLAPI = "gl_online_dlapi"
+    private const val KEY_CN_ENABLED = "cn_enabled"
+    private const val KEY_GL_ENABLED = "gl_enabled"
+    private const val KEY_CN_BACKEND = "cn_backend"
+    private const val KEY_GL_BACKEND = "gl_backend"
+    private const val KEY_DEFAULT_PROFILE = "default_profile"
+    private const val KEY_CN_ONLINE_SERVER = "cn_online_server"
+    private const val KEY_GL_ONLINE_SERVER = "gl_online_server"
+    private const val KEY_DUAL_PROFILE_PREFS_MIGRATED = "dual_profile_prefs_migrated_v2"
+    private const val KEY_LEGACY_DOWNLOAD_PROFILE = "download_profile"
+
+    const val PROFILE_CN = "cn"
+    const val PROFILE_GL = "gl"
+    const val BACKEND_LOCAL = "local"
+    const val BACKEND_ONLINE = "online"
+    const val MODE_DISABLED = "disabled"
+    const val MODE_LOCAL = "local"
+    const val MODE_ONLINE = "online"
     const val ONLINE_DLAPI_SERVER = "https://ll.sif.moe/npps4_dlapi/"
 
-    fun getDownloadProfile(context: Context): String =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_DOWNLOAD_PROFILE, PROFILE_CN_ARCHIVE) ?: PROFILE_CN_ARCHIVE
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun setDownloadProfile(context: Context, profile: String) {
-        val normalized = when (profile) {
-            PROFILE_GL_ONLINE_DLAPI -> PROFILE_GL_ONLINE_DLAPI
-            else -> PROFILE_CN_ARCHIVE
+    /**
+     * Migrate the old mutually-exclusive GUI preference once.  The old value
+     * selected either CN-local or GL-online for the whole process; it must not
+     * remain authoritative after CN and GL become independent Profiles.
+     *
+     * Existing Stage-3 per-profile values are preserved.  A clean install
+     * enables both Profiles (CN local + GL online), while an upgrade directly
+     * from v4.60 preserves the one mode which the operator had selected and
+     * leaves the other Profile available but disabled until explicitly chosen.
+     */
+    private fun ensureDualProfilePreferences(context: Context) {
+        val p = prefs(context)
+        if (p.getBoolean(KEY_DUAL_PROFILE_PREFS_MIGRATED, false)) return
+        val editor = p.edit()
+        val hasNewValues = p.contains(KEY_CN_ENABLED) || p.contains(KEY_GL_ENABLED) ||
+            p.contains(KEY_CN_BACKEND) || p.contains(KEY_GL_BACKEND)
+        if (!hasNewValues) {
+            val legacy = p.getString(KEY_LEGACY_DOWNLOAD_PROFILE, null)
+            if (legacy == "gl_online_dlapi") {
+                editor.putBoolean(KEY_CN_ENABLED, false)
+                editor.putString(KEY_CN_BACKEND, BACKEND_LOCAL)
+                editor.putBoolean(KEY_GL_ENABLED, true)
+                editor.putString(KEY_GL_BACKEND, BACKEND_ONLINE)
+                editor.putString(KEY_DEFAULT_PROFILE, PROFILE_GL)
+            } else if (legacy == "cn_archive") {
+                editor.putBoolean(KEY_CN_ENABLED, true)
+                editor.putString(KEY_CN_BACKEND, BACKEND_LOCAL)
+                editor.putBoolean(KEY_GL_ENABLED, false)
+                editor.putString(KEY_GL_BACKEND, BACKEND_ONLINE)
+                editor.putString(KEY_DEFAULT_PROFILE, PROFILE_CN)
+            } else {
+                editor.putBoolean(KEY_CN_ENABLED, true)
+                editor.putString(KEY_CN_BACKEND, BACKEND_LOCAL)
+                editor.putBoolean(KEY_GL_ENABLED, true)
+                editor.putString(KEY_GL_BACKEND, BACKEND_ONLINE)
+                editor.putString(KEY_DEFAULT_PROFILE, PROFILE_CN)
+            }
         }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_DOWNLOAD_PROFILE, normalized)
-            .apply()
+        editor.remove(KEY_LEGACY_DOWNLOAD_PROFILE)
+        editor.putBoolean(KEY_DUAL_PROFILE_PREFS_MIGRATED, true)
+        editor.apply()
+    }
+
+    fun isProfileEnabled(context: Context, profile: String): Boolean {
+        ensureDualProfilePreferences(context)
+        return when (profile) {
+            PROFILE_GL -> prefs(context).getBoolean(KEY_GL_ENABLED, true)
+            else -> prefs(context).getBoolean(KEY_CN_ENABLED, true)
+        }
+    }
+
+    fun getProfileBackend(context: Context, profile: String): String {
+        ensureDualProfilePreferences(context)
+        val key = if (profile == PROFILE_GL) KEY_GL_BACKEND else KEY_CN_BACKEND
+        val default = if (profile == PROFILE_GL) BACKEND_ONLINE else BACKEND_LOCAL
+        return when (prefs(context).getString(key, default)) {
+            BACKEND_ONLINE -> BACKEND_ONLINE
+            else -> BACKEND_LOCAL
+        }
+    }
+
+    fun getProfileMode(context: Context, profile: String): String {
+        if (!isProfileEnabled(context, profile)) return MODE_DISABLED
+        return if (getProfileBackend(context, profile) == BACKEND_ONLINE) MODE_ONLINE else MODE_LOCAL
+    }
+
+    fun getDefaultProfile(context: Context): String {
+        ensureDualProfilePreferences(context)
+        val selected = prefs(context).getString(KEY_DEFAULT_PROFILE, PROFILE_CN) ?: PROFILE_CN
+        if (selected == PROFILE_GL && isProfileEnabled(context, PROFILE_GL)) return PROFILE_GL
+        if (isProfileEnabled(context, PROFILE_CN)) return PROFILE_CN
+        return PROFILE_GL
+    }
+
+    fun getOnlineServer(context: Context, profile: String): String {
+        ensureDualProfilePreferences(context)
+        val key = if (profile == PROFILE_GL) KEY_GL_ONLINE_SERVER else KEY_CN_ONLINE_SERVER
+        val default = if (profile == PROFILE_GL) ONLINE_DLAPI_SERVER else ""
+        return prefs(context).getString(key, default) ?: default
+    }
+
+    fun setProfileMode(context: Context, profile: String, mode: String): String {
+        ensureDualProfilePreferences(context)
+        val normalized = when (mode) {
+            MODE_DISABLED -> MODE_DISABLED
+            MODE_ONLINE -> MODE_ONLINE
+            else -> MODE_LOCAL
+        }
+        val other = if (profile == PROFILE_CN) PROFILE_GL else PROFILE_CN
+        if (normalized == MODE_DISABLED && !isProfileEnabled(context, other)) {
+            return "CN 与 GL 不能同时禁用；请先启用另一个 Profile。"
+        }
+        val enabledKey = if (profile == PROFILE_GL) KEY_GL_ENABLED else KEY_CN_ENABLED
+        val backendKey = if (profile == PROFILE_GL) KEY_GL_BACKEND else KEY_CN_BACKEND
+        val editor = prefs(context).edit()
+        editor.putBoolean(enabledKey, normalized != MODE_DISABLED)
+        if (normalized != MODE_DISABLED) {
+            editor.putString(backendKey, if (normalized == MODE_ONLINE) BACKEND_ONLINE else BACKEND_LOCAL)
+        }
+        if (normalized == MODE_DISABLED && getDefaultProfile(context) == profile) {
+            editor.putString(KEY_DEFAULT_PROFILE, other)
+        }
+        editor.apply()
         rewriteDefaultConfig(context)
+        val description = when (normalized) {
+            MODE_DISABLED -> "禁用"
+            MODE_ONLINE -> "在线 n4dlapi"
+            else -> "本地数据"
+        }
+        return "${profile.uppercase(Locale.US)} 已设为$description；CN 与 GL 的设置互不覆盖，重启服务端后生效。"
     }
 
-    fun configureCnArchive(context: Context): String {
-        setDownloadProfile(context, PROFILE_CN_ARCHIVE)
-        return "已切换为国服本地 CDN 模式：download.backend=cn_archive。重启服务端后生效。"
+    fun setDefaultProfile(context: Context, profile: String): String {
+        ensureDualProfilePreferences(context)
+        val normalized = if (profile == PROFILE_GL) PROFILE_GL else PROFILE_CN
+        if (!isProfileEnabled(context, normalized)) {
+            return "${normalized.uppercase(Locale.US)} 当前未启用，不能设为默认 Profile。"
+        }
+        prefs(context).edit().putString(KEY_DEFAULT_PROFILE, normalized).apply()
+        rewriteDefaultConfig(context)
+        return "默认 Profile 已设为 ${normalized.uppercase(Locale.US)}；只影响无法自动识别的登录前请求。"
     }
 
-    fun configureGlOnlineDlapi(context: Context): String {
-        setDownloadProfile(context, PROFILE_GL_ONLINE_DLAPI)
-        return "已切换为国际服在线 DLAPI/CDN 模式：download.backend=n4dlapi，server=$ONLINE_DLAPI_SERVER。重启服务端后生效。"
+    fun saveProfileOptions(
+        context: Context,
+        cnOnlineServer: String,
+        glArchiveRoot: String,
+        glOnlineServer: String,
+    ): String {
+        val cleanCn = cnOnlineServer.trim().trimEnd('/')
+        val cleanGl = glOnlineServer.trim().trimEnd('/')
+        prefs(context).edit()
+            .putString(KEY_CN_ONLINE_SERVER, cleanCn)
+            .putString(KEY_GL_ONLINE_SERVER, cleanGl)
+            .apply()
+        if (glArchiveRoot.isNotBlank()) PythonBridge.setGlArchiveRoot(context, File(glArchiveRoot.trim()))
+        rewriteDefaultConfig(context)
+        return "双 Profile 配置已保存。CN 与 GL 的启用状态、下载源、路径和 CDN 地址互不覆盖；重启服务端后生效。"
+    }
+
+    fun downloadSummary(context: Context): String {
+        fun one(profile: String): String {
+            if (!isProfileEnabled(context, profile)) return "${profile.uppercase(Locale.US)}：禁用"
+            val backend = getProfileBackend(context, profile)
+            val detail = when {
+                profile == PROFILE_CN && backend == BACKEND_LOCAL -> "本地 cn_archive → ${PythonBridge.cnAndroidArchives(context).absolutePath}"
+                profile == PROFILE_GL && backend == BACKEND_LOCAL -> "本地 internal → ${PythonBridge.glArchiveRoot(context).absolutePath}"
+                else -> "在线 n4dlapi → ${getOnlineServer(context, profile).ifBlank { "未填写" }}"
+            }
+            return "${profile.uppercase(Locale.US)}：$detail"
+        }
+        return listOf(
+            one(PROFILE_CN),
+            one(PROFILE_GL),
+            "默认 Profile：${getDefaultProfile(context).uppercase(Locale.US)}",
+        ).joinToString("\n")
     }
 
     fun ensureTemplate(context: Context) {
@@ -61,26 +209,21 @@ object FileOps {
         // mutable directories.
         PythonBridge.exportsDir(context).mkdirs()
         val cfg = PythonBridge.configFile(context)
-        // v4.48 rewrote config.toml on every start, silently discarding manual
-        // archive/all unlock policies and every other operator edit. Create a
-        // canonical file only when missing/broken; normal starts preserve it.
+        // Editable configuration is user-owned after first creation. Create a
+        // default only when the file is absent; blank, malformed, or manually
+        // changed files are left untouched and reported by normal startup.
         cfg.parentFile?.mkdirs()
-        val currentConfig = try { if (cfg.exists()) cfg.readText(Charsets.UTF_8) else "" } catch (_: Throwable) { "" }
-        if (currentConfig.isBlank() || !currentConfig.contains("[download]")) {
+        if (!cfg.exists()) {
             cfg.writeText(defaultConfig(context), Charsets.UTF_8)
         }
         val loginBonus = File(work, "external/login_bonus.py")
-        val placeholder = "# Android wrapper placeholder. NPPS4 bundled defaults will be used after Python workspace preparation."
-        if (!loginBonus.exists() || loginBonus.readText(Charsets.UTF_8).trim() == placeholder) {
+        if (!loginBonus.exists()) {
             loginBonus.parentFile?.mkdirs()
-            if (loginBonus.exists()) File(loginBonus.parentFile, "login_bonus.py.placeholder.bak").writeText(loginBonus.readText(Charsets.UTF_8), Charsets.UTF_8)
             loginBonus.writeText(defaultLoginBonusScript(), Charsets.UTF_8)
         }
-        val serverData = PythonBridge.serverDataFile(context)
-        if (!serverData.exists()) {
-            serverData.parentFile?.mkdirs()
-            serverData.writeText("{}\n", Charsets.UTF_8)
-        }
+        // Do not create an empty server_data.json here. Python workspace
+        // preparation copies the bundled full default only when the file is
+        // missing. Once created, the user's exact file is never merged/reset.
         // Public CDN archives are user-managed and intentionally read-only.
         // Do not write README.txt or any marker files into that folder.
     }
@@ -93,21 +236,37 @@ object FileOps {
             return
         }
 
-        // Synchronize only values owned by the Wrapper UI. Everything else —
-        // especially museum/archive unlock policies and user-edited hooks — is
-        // preserved verbatim instead of being reset on every start/restart.
-        val archives = PythonBridge.cnAndroidArchives(context).absolutePath.replace('\\', '/')
+        val cnArchives = PythonBridge.cnAndroidArchives(context).absolutePath.replace('\\', '/')
+        val glArchive = PythonBridge.glArchiveRoot(context).absolutePath.replace('\\', '/')
         val dbRoot = PythonBridge.dbRoot(context).absolutePath.replace('\\', '/')
-        val profile = getDownloadProfile(context)
-        val isCn = profile != PROFILE_GL_ONLINE_DLAPI
+        val cnEnabled = isProfileEnabled(context, PROFILE_CN)
+        val glEnabled = isProfileEnabled(context, PROFILE_GL)
+        val cnBackend = if (getProfileBackend(context, PROFILE_CN) == BACKEND_LOCAL) "cn_archive" else "n4dlapi"
+        val glBackend = if (getProfileBackend(context, PROFILE_GL) == BACKEND_LOCAL) "internal" else "n4dlapi"
         var text = cfg.readText(Charsets.UTF_8)
-        text = upsertTomlValue(text, "download", "backend", tomlString(if (isCn) "cn_archive" else "n4dlapi"), true)
-        text = upsertTomlValue(text, "download.n4dlapi", "server", tomlString(ONLINE_DLAPI_SERVER), true)
-        text = upsertTomlValue(text, "download.cn_archive", "android_archives", tomlString(archives), true)
-        text = upsertTomlValue(text, "download.cn_archive", "db_root", tomlString(dbRoot), true)
-        text = upsertTomlValue(text, "download.cn_archive", "application_version", tomlString("9.7.1"), false)
-        text = upsertTomlValue(text, "download.cn_archive", "client_version", tomlString("97.4.6"), false)
-        text = upsertTomlValue(text, "download.cn_archive", "android_server_info_override", tomlString(if (isCn) "cn_server_info_99_0_115.zip" else ""), true)
+
+        // Disable the v4.60 process-global selector.  The profile registry below
+        // is authoritative; the legacy key remains blank only for old parsers.
+        text = upsertTomlValue(text, "download", "backend", tomlString(""), true)
+        text = upsertTomlValue(text, "download", "default_profile", tomlString(getDefaultProfile(context)), true)
+
+        text = upsertTomlValue(text, "download.profiles.cn", "enabled", cnEnabled.toString(), true)
+        text = upsertTomlValue(text, "download.profiles.cn", "backend", tomlString(cnBackend), true)
+        text = upsertTomlValue(text, "download.profiles.cn", "museum_unlock_policy", tomlString("all"), false)
+        text = upsertTomlValue(text, "download.profiles.cn", "send_patched_server_info", "true", true)
+        text = upsertTomlValue(text, "download.profiles.cn.n4dlapi", "server", tomlString(getOnlineServer(context, PROFILE_CN)), true)
+        text = upsertTomlValue(text, "download.profiles.cn.n4dlapi", "shared_key", tomlString(""), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "android_archives", tomlString(cnArchives), true)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "ios_archives", tomlString(""), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "android_extracted", tomlString(""), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "ios_extracted", tomlString(""), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "db_root", tomlString(dbRoot), true)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "application_version", tomlString("9.7.1"), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "client_version", tomlString("97.4.6"), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "update_package_type", "99", false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "server_info_override", tomlString("99_0_115.zip"), false)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "android_server_info_override", tomlString("cn_server_info_99_0_115.zip"), true)
+        text = upsertTomlValue(text, "download.profiles.cn.cn_archive", "ios_server_info_override", tomlString(""), false)
 
         val cnDefaults = linkedMapOf(
             "gl_overlay_enabled" to "true",
@@ -120,21 +279,31 @@ object FileOps {
             "android_extra_update_packages" to "[]",
             "ios_extra_update_packages" to "[]",
             "archive_access_manifest" to tomlString("data/cn_update_overlays/archive_access_manifest.json"),
-            "museum_unlock_policy" to tomlString("all"),
             "main_scenario_unlock_policy" to tomlString("normal"),
             "subscenario_unlock_policy" to tomlString("normal"),
             "live_unlock_policy" to tomlString("normal"),
             "album_catalog_unlock_policy" to tomlString("normal"),
         )
         cnDefaults.forEach { (key, value) ->
-            text = upsertTomlValue(text, "download.cn_archive", key, value, false)
+            text = upsertTomlValue(text, "download.profiles.cn.cn_archive", key, value, false)
         }
 
-        text = upsertTomlValue(text, "compat", "region", tomlString(if (isCn) "cn" else "global"), true)
-        text = upsertTomlValue(text, "compat", "cn_main_headers", isCn.toString(), true)
-        text = upsertTomlValue(text, "compat", "cn_autocreate_ghome_users", isCn.toString(), true)
-        text = upsertTomlValue(text, "compat", "cn_wrappers", isCn.toString(), true)
-        text = upsertTomlValue(text, "compat", "cn_optional_stubs", isCn.toString(), true)
+        text = upsertTomlValue(text, "download.profiles.gl", "enabled", glEnabled.toString(), true)
+        text = upsertTomlValue(text, "download.profiles.gl", "backend", tomlString(glBackend), true)
+        text = upsertTomlValue(text, "download.profiles.gl", "museum_unlock_policy", tomlString("all"), false)
+        text = upsertTomlValue(text, "download.profiles.gl", "send_patched_server_info", "true", true)
+        text = upsertTomlValue(text, "download.profiles.gl.internal", "archive_root", tomlString(glArchive), true)
+        text = upsertTomlValue(text, "download.profiles.gl.n4dlapi", "server", tomlString(getOnlineServer(context, PROFILE_GL)), true)
+        text = upsertTomlValue(text, "download.profiles.gl.n4dlapi", "shared_key", tomlString(""), false)
+        text = upsertTomlValue(text, "download.profiles.gl.none", "client_version", tomlString("59.4"), false)
+
+        // CN compatibility options are now request/profile-gated.  They may stay
+        // enabled globally without affecting GL sessions.
+        text = upsertTomlValue(text, "compat", "region", tomlString("dual"), true)
+        text = upsertTomlValue(text, "compat", "cn_main_headers", "true", true)
+        text = upsertTomlValue(text, "compat", "cn_autocreate_ghome_users", "true", true)
+        text = upsertTomlValue(text, "compat", "cn_wrappers", "true", true)
+        text = upsertTomlValue(text, "compat", "cn_optional_stubs", "false", true)
         cfg.writeText(text, Charsets.UTF_8)
     }
 
@@ -179,11 +348,13 @@ object FileOps {
     fun checkPublicPaths(context: Context): String {
         val base = PythonBridge.publicBase(context)
         val archives = PythonBridge.cnAndroidArchives(context)
+        val glArchive = PythonBridge.glArchiveRoot(context)
         val db = PythonBridge.dbRoot(context)
         val lines = mutableListOf<String>()
         lines += "CDN ZIP 目录: ${base.absolutePath}"
         lines += "所有文件访问权限: ${if (android.os.Build.VERSION.SDK_INT < 30 || android.os.Environment.isExternalStorageManager()) "已授予/不需要" else "未授予"}"
-        for (dir in listOf(base, archives, db)) {
+        lines += "GL 本地 archive-root: ${glArchive.absolutePath}"
+        for (dir in listOf(base, archives, glArchive, db)) {
             lines += "${dir.name.ifBlank { dir.absolutePath }}: exists=${dir.exists()} dir=${dir.isDirectory} canRead=${dir.canRead()} canWrite=${dir.canWrite()}"
         }
         lines += "CDN ZIP 目录写入测试: 已跳过（目录按只读处理；不会修改普通 ZIP 或 99_0_115.zip）"
@@ -229,12 +400,78 @@ async def get_rewards(day: int, month: int, year: int, context):
 
     private fun defaultConfig(context: Context): String {
         val root = PythonBridge.workDir(context).absolutePath.replace('\\', '/')
-        val archives = PythonBridge.cnAndroidArchives(context).absolutePath.replace('\\', '/')
+        val cnArchives = PythonBridge.cnAndroidArchives(context).absolutePath.replace('\\', '/')
+        val glArchive = PythonBridge.glArchiveRoot(context).absolutePath.replace('\\', '/')
         val dbRoot = PythonBridge.dbRoot(context).absolutePath.replace('\\', '/')
-        return when (getDownloadProfile(context)) {
-            PROFILE_GL_ONLINE_DLAPI -> defaultGlOnlineConfig(root, archives, dbRoot)
-            else -> defaultCnArchiveConfig(root, archives, dbRoot)
-        }
+        val cnBackend = if (getProfileBackend(context, PROFILE_CN) == BACKEND_LOCAL) "cn_archive" else "n4dlapi"
+        val glBackend = if (getProfileBackend(context, PROFILE_GL) == BACKEND_LOCAL) "internal" else "n4dlapi"
+        return commonConfigPrefix(root) + """
+[download]
+backend = ""
+default_profile = "${getDefaultProfile(context)}"
+
+[download.profiles.cn]
+enabled = ${isProfileEnabled(context, PROFILE_CN)}
+backend = "$cnBackend"
+museum_unlock_policy = "all"
+send_patched_server_info = true
+
+[download.profiles.cn.n4dlapi]
+server = "${getOnlineServer(context, PROFILE_CN)}"
+shared_key = ""
+
+[download.profiles.cn.cn_archive]
+android_archives = "$cnArchives"
+ios_archives = ""
+android_extracted = ""
+ios_extracted = ""
+db_root = "$dbRoot"
+application_version = "9.7.1"
+client_version = "97.4.6"
+update_package_type = 99
+server_info_override = "99_0_115.zip"
+android_server_info_override = "cn_server_info_99_0_115.zip"
+ios_server_info_override = ""
+gl_overlay_enabled = true
+gl_overlay_server = "https://ll.sif.moe/npps4_dlapi"
+gl_overlay_shared_key = ""
+gl_overlay_cache = ""
+gl_overlay_timeout = 30
+gl_overlay_try_language_fallback = true
+gl_overlay_negative_ttl = 300
+android_extra_update_packages = []
+ios_extra_update_packages = []
+archive_access_manifest = "data/cn_update_overlays/archive_access_manifest.json"
+main_scenario_unlock_policy = "normal"
+subscenario_unlock_policy = "normal"
+live_unlock_policy = "normal"
+album_catalog_unlock_policy = "normal"
+
+[download.profiles.gl]
+enabled = ${isProfileEnabled(context, PROFILE_GL)}
+backend = "$glBackend"
+museum_unlock_policy = "all"
+send_patched_server_info = true
+
+[download.profiles.gl.internal]
+archive_root = "$glArchive"
+
+[download.profiles.gl.n4dlapi]
+server = "${getOnlineServer(context, PROFILE_GL)}"
+shared_key = ""
+
+[download.profiles.gl.none]
+client_version = "59.4"
+
+[compat]
+region = "dual"
+cn_main_headers = true
+cn_autocreate_ghome_users = true
+cn_wrappers = true
+cn_optional_stubs = false
+daily_rotation_timezone = "auto"
+live_continue_loveca_cost = 1
+""" + commonGameConfig()
     }
 
     private fun commonConfigPrefix(root: String): String = """# Generated by NPPS4 Android Wrapper.
@@ -277,104 +514,6 @@ energy_multiplier = 1
 love_multiplier = 1
 secretbox_cost_multiplier = 1
 """
-
-    private fun defaultCnArchiveConfig(root: String, archives: String, dbRoot: String): String {
-        return commonConfigPrefix(root) + """
-[download]
-backend = "cn_archive"
-send_patched_server_info = true
-
-[download.n4dlapi]
-server = "$ONLINE_DLAPI_SERVER"
-shared_key = ""
-
-[download.cn_archive]
-android_archives = "$archives"
-ios_archives = ""
-android_extracted = ""
-ios_extracted = ""
-db_root = "$dbRoot"
-application_version = "9.7.1"
-client_version = "97.4.6"
-update_package_type = 99
-server_info_override = "99_0_115.zip"
-android_server_info_override = "cn_server_info_99_0_115.zip"
-ios_server_info_override = ""
-gl_overlay_enabled = true
-gl_overlay_server = "https://ll.sif.moe/npps4_dlapi"
-gl_overlay_shared_key = ""
-gl_overlay_cache = ""
-gl_overlay_timeout = 30
-gl_overlay_try_language_fallback = true
-gl_overlay_negative_ttl = 300
-android_extra_update_packages = []
-ios_extra_update_packages = []
-archive_access_manifest = "data/cn_update_overlays/archive_access_manifest.json"
-museum_unlock_policy = "all"
-main_scenario_unlock_policy = "normal"
-subscenario_unlock_policy = "normal"
-live_unlock_policy = "normal"
-album_catalog_unlock_policy = "normal"
-
-[compat]
-region = "cn"
-cn_main_headers = true
-cn_autocreate_ghome_users = true
-cn_wrappers = true
-cn_optional_stubs = true
-daily_rotation_timezone = "auto"
-live_continue_loveca_cost = 1
-""" + commonGameConfig()
-    }
-
-    private fun defaultGlOnlineConfig(root: String, archives: String, dbRoot: String): String {
-        return commonConfigPrefix(root) + """
-[download]
-backend = "n4dlapi"
-send_patched_server_info = true
-
-[download.n4dlapi]
-server = "$ONLINE_DLAPI_SERVER"
-shared_key = ""
-
-[download.cn_archive]
-android_archives = "$archives"
-ios_archives = ""
-android_extracted = ""
-ios_extracted = ""
-db_root = "$dbRoot"
-application_version = "9.7.1"
-client_version = "97.4.6"
-update_package_type = 99
-server_info_override = "99_0_115.zip"
-android_server_info_override = ""
-ios_server_info_override = ""
-gl_overlay_enabled = true
-gl_overlay_server = "https://ll.sif.moe/npps4_dlapi"
-gl_overlay_shared_key = ""
-gl_overlay_cache = ""
-gl_overlay_timeout = 30
-gl_overlay_try_language_fallback = true
-gl_overlay_negative_ttl = 300
-android_extra_update_packages = []
-ios_extra_update_packages = []
-archive_access_manifest = "data/cn_update_overlays/archive_access_manifest.json"
-museum_unlock_policy = "all"
-main_scenario_unlock_policy = "normal"
-subscenario_unlock_policy = "normal"
-live_unlock_policy = "normal"
-album_catalog_unlock_policy = "normal"
-
-[compat]
-region = "global"
-cn_main_headers = false
-cn_autocreate_ghome_users = false
-cn_wrappers = false
-cn_optional_stubs = false
-daily_rotation_timezone = "auto"
-live_continue_loveca_cost = 1
-""" + commonGameConfig()
-    }
 
     private fun addDirToZip(zip: ZipOutputStream, root: File, prefix: String, include: (String) -> Boolean) {
         root.walkTopDown().forEach { file ->

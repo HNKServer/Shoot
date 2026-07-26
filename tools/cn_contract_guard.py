@@ -158,8 +158,8 @@ post_source = text("system/post_service_content.py")
 lbonus_source = text("game/lbonus.py")
 db_source = text("db/main.py")
 event_game_source = text("game/eventscenario.py")
-for term in ("GRANT_KEY = \"cn_post_service_content\"", "GRANT_VERSION = 1", "ContentAccessGrant", "grant.grant_version >= GRANT_VERSION"):
-    require(term in post_source, f"post-service idempotency contract missing: {term}")
+for term in ("GRANT_KEY_PREFIX = \"post_service_content\"", "GRANT_VERSION = 2", "ContentAccessGrant", "grant.grant_version >= GRANT_VERSION", "context.profile.value"):
+    require(term in post_source, f"profile-scoped post-service idempotency contract missing: {term}")
 require("achievement_type == 29" in post_source, "release/login achievement selection is not narrowly typed")
 require("default_open_flag == 1" in post_source, "release achievements are not limited to default-open records")
 require("AchievementUpdateLoginBonus" in lbonus_source, "content migration bypasses NPPS4's real achievement checker")
@@ -196,8 +196,35 @@ require("class UserAccessory" in db_source and "rank_up_count" in db_source, "pe
 # Do not advertise completely absent route families, and do not change a
 # historically preserved capability without client evidence.
 require("open_arena=False" in login_source, "Arena is advertised although no arena endpoints exist")
-require("costume_status=False" in login_source, "Costume is advertised although mutation/status endpoints are absent")
+costume_game_source = text("game/costume.py")
+require(
+    "costume_status=await costume.is_enabled" in login_source,
+    "Costume capability is not derived from the profile-aware implementation",
+)
+for route in ("costumeList", "costumeStatus", "dressUp", "makeCostume"):
+    require(
+        f'@idol.register("costume", "{route}")' in costume_game_source,
+        f"Costume is advertised but route is missing: {route}",
+    )
 require("open_v98=True" in login_source, "open_v98 was changed without client evidence")
+
+# v5.00 dual-profile invariants.
+profile_source = text("client_profile.py")
+config_source = text("config/data.py")
+download_source = text("download/download.py")
+projection_source = text("system/profile_projection.py")
+content_source = text("system/content_master.py")
+for term in ("class ClientProfile", 'CN = "cn"', 'GL = "gl"'):
+    require(term in profile_source, f"CN/GL profile model missing: {term}")
+require('JP = "jp"' not in profile_source, "JP must not be a separate post-merge profile")
+for term in ("default_profile", "profiles: _DownloadProfiles", "class _ProfileDownload"):
+    require(term in config_source, f"independent profile download config missing: {term}")
+for term in ("initialize_profiles", "_BACKENDS", "get_profile_status"):
+    require(term in download_source, f"profile download registry missing: {term}")
+for term in ("unit_supported", "accessory_supported", "award_id", "background_id"):
+    require(term in projection_source, f"cross-profile safe projection missing: {term}")
+for term in ("event_scenarios", "multi_unit_scenarios", "755", "57"):
+    require(term in content_source, f"GL content provider contract missing: {term}")
 
 # Never print bearer tokens or decrypted login credentials.
 session_source = text("idol/session.py")
